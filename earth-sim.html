@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth 3D Simulation - Today I Read</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: calibri, sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        
+        #ui-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 320px;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+        
+        #ui-panel h1 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            font-weight: normal;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        
+        button {
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: calibri, sans-serif;
+            font-size: 13px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+        
+        button.active {
+            background: #666;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        
+        .checkbox-label input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        #date-display {
+            font-size: 15px;
+            color: #4af;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        #speed-value {
+            display: inline-block;
+            min-width: 50px;
+            color: #4af;
+        }
+        
+        .info-text {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+        
+        @media (max-width: 768px) {
+            #ui-panel {
+                max-width: 280px;
+                font-size: 12px;
+                padding: 15px;
+            }
+            
+            #ui-panel h1 {
+                font-size: 18px;
+            }
+            
+            button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div id="ui-panel">
+        <h1>Earth 3D Simulation</h1>
+        
+        <div id="date-display">Jan 1, 2024 00:00:00</div>
+        
+        <div class="control-group">
+            <button id="play-pause-btn">Pause</button>
+            <button id="reset-btn">Reset</button>
+        </div>
+        
+        <div class="control-group">
+            <label>
+                Speed: <span id="speed-value">1.0x</span>
+                <div class="info-text">1 sec = 1 hour simulated</div>
+            </label>
+            <input type="range" id="speed-slider" min="-2" max="5.3" step="0.1" value="0">
+        </div>
+        
+        <div class="control-group">
+            <label>Toggles:</label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="toggle-orbit" checked>
+                <span>Show Orbit Path</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="toggle-labels" checked>
+                <span>Season Labels</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="toggle-moon">
+                <span>Show Moon</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="toggle-stars" checked>
+                <span>Starfield</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="toggle-atmosphere" checked>
+                <span>Atmosphere Glow</span>
+            </label>
+        </div>
+        
+        <div class="info-text">
+            Use mouse to orbit camera. Scroll to zoom. Axial tilt: 23.44°
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Constants
+        const EARTH_RADIUS = 2;
+        const SUN_RADIUS = 5;
+        const ORBIT_RADIUS = 30;
+        const MOON_RADIUS = 0.5;
+        const MOON_ORBIT_RADIUS = 6;
+        const AXIAL_TILT = 23.44 * Math.PI / 180;
+        const SIDEREAL_DAY_HOURS = 23.9344; // 23h56m in hours
+        const YEAR_DAYS = 365.25;
+        const MOON_ORBIT_DAYS = 27.3;
+
+        // Simulation state
+        let scene, camera, renderer, controls;
+        let sun, sunLight, earth, earthGroup, orbitGroup, moon, moonOrbitGroup;
+        let orbitLine, seasonLabels = [];
+        let starfield, atmosphereGlow;
+        let isPaused = false;
+        let timeScale = 1.0; // 1 sec real = 1 hour simulated
+        let simulatedTime = 0; // in hours since epoch
+        const EPOCH = new Date(2024, 0, 1, 0, 0, 0); // Jan 1, 2024
+
+        // UI elements
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const speedSlider = document.getElementById('speed-slider');
+        const speedValue = document.getElementById('speed-value');
+        const dateDisplay = document.getElementById('date-display');
+        const toggleOrbit = document.getElementById('toggle-orbit');
+        const toggleLabels = document.getElementById('toggle-labels');
+        const toggleMoon = document.getElementById('toggle-moon');
+        const toggleStars = document.getElementById('toggle-stars');
+        const toggleAtmosphere = document.getElementById('toggle-atmosphere');
+
+        init();
+        animate();
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                45,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 20, 50);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 150;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+            scene.add(ambientLight);
+
+            // Sun
+            createSun();
+
+            // Orbit group (rotates around sun for orbital revolution)
+            orbitGroup = new THREE.Group();
+            scene.add(orbitGroup);
+            
+            // Position orbit group at distance from sun
+            orbitGroup.position.set(ORBIT_RADIUS, 0, 0);
+
+            // Earth group (handles axial tilt)
+            earthGroup = new THREE.Group();
+            earthGroup.rotation.z = AXIAL_TILT;
+            orbitGroup.add(earthGroup);
+
+            // Earth
+            createEarth();
+
+            // Moon
+            createMoon();
+
+            // Orbit path
+            createOrbitPath();
+
+            // Season labels
+            createSeasonLabels();
+
+            // Starfield
+            createStarfield();
+
+            // Event listeners
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            resetBtn.addEventListener('click', reset);
+            speedSlider.addEventListener('input', updateSpeed);
+            toggleOrbit.addEventListener('change', () => {
+                orbitLine.visible = toggleOrbit.checked;
+            });
+            toggleLabels.addEventListener('change', () => {
+                seasonLabels.forEach(label => label.visible = toggleLabels.checked);
+            });
+            toggleMoon.addEventListener('change', () => {
+                moonOrbitGroup.visible = toggleMoon.checked;
+            });
+            toggleStars.addEventListener('change', () => {
+                starfield.visible = toggleStars.checked;
+            });
+            toggleAtmosphere.addEventListener('change', () => {
+                atmosphereGlow.visible = toggleAtmosphere.checked;
+            });
+
+            window.addEventListener('resize', onWindowResize);
+
+            updateDateDisplay();
+        }
+
+        function createSun() {
+            // Sun mesh
+            const sunGeometry = new THREE.SphereGeometry(SUN_RADIUS, 32, 32);
+            const sunMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffdd44,
+                emissive: 0xffdd44,
+                emissiveIntensity: 1
+            });
+            sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            scene.add(sun);
+
+            // Sun light
+            sunLight = new THREE.DirectionalLight(0xffffff, 2);
+            sunLight.position.set(0, 0, 0);
+            scene.add(sunLight);
+
+            // Add point light for extra glow
+            const sunPointLight = new THREE.PointLight(0xffdd44, 1, 100);
+            sunPointLight.position.set(0, 0, 0);
+            scene.add(sunPointLight);
+        }
+
+        function createEarth() {
+            const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
+
+            // Create textures
+            const textureLoader = new THREE.TextureLoader();
+            
+            // Using NASA's Blue Marble texture URLs from reliable CDN
+            const dayTexture = createDayTexture();
+            const nightTexture = createNightTexture();
+            const normalTexture = createNormalTexture();
+            const specularTexture = createSpecularTexture();
+
+            // Custom shader material for day/night blend
+            const earthMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    dayTexture: { value: dayTexture },
+                    nightTexture: { value: nightTexture },
+                    normalMap: { value: normalTexture },
+                    specularMap: { value: specularTexture },
+                    sunDirection: { value: new THREE.Vector3(-1, 0, 0).normalize() }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    varying vec3 vNormal;
+                    varying vec3 vPosition;
+                    
+                    void main() {
+                        vUv = uv;
+                        vNormal = normalize(normalMatrix * normal);
+                        vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D dayTexture;
+                    uniform sampler2D nightTexture;
+                    uniform sampler2D normalMap;
+                    uniform sampler2D specularMap;
+                    uniform vec3 sunDirection;
+                    
+                    varying vec2 vUv;
+                    varying vec3 vNormal;
+                    varying vec3 vPosition;
+                    
+                    void main() {
+                        vec3 dayColor = texture2D(dayTexture, vUv).rgb;
+                        vec3 nightColor = texture2D(nightTexture, vUv).rgb;
+                        vec3 normal = normalize(vNormal);
+                        
+                        // Calculate lighting
+                        float cosAngle = dot(normal, sunDirection);
+                        float mixAmount = smoothstep(-0.1, 0.1, cosAngle);
+                        
+                        // Blend day and night
+                        vec3 color = mix(nightColor * 2.0, dayColor, mixAmount);
+                        
+                        // Add specular highlight
+                        vec3 viewDir = normalize(-vPosition);
+                        vec3 reflectDir = reflect(-sunDirection, normal);
+                        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+                        float specularMask = texture2D(specularMap, vUv).r;
+                        color += spec * specularMask * 0.5;
+                        
+                        gl_FragColor = vec4(color, 1.0);
+                    }
+                `
+            });
+
+            earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            earthGroup.add(earth);
+
+            // Atmosphere glow
+            createAtmosphere();
+        }
+
+        function createDayTexture() {
+            // Create a procedural day texture with continents
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Ocean
+            ctx.fillStyle = '#2244aa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add some land masses (simplified continents)
+            ctx.fillStyle = '#228844';
+            
+            // Africa/Europe
+            ctx.beginPath();
+            ctx.ellipse(550, 250, 100, 120, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Americas
+            ctx.beginPath();
+            ctx.ellipse(200, 220, 70, 140, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.ellipse(250, 340, 90, 100, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Asia
+            ctx.beginPath();
+            ctx.ellipse(750, 200, 150, 100, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Australia
+            ctx.beginPath();
+            ctx.ellipse(850, 370, 60, 40, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Clouds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            for (let i = 0; i < 30; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const r = 20 + Math.random() * 40;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            return texture;
+        }
+
+        function createNightTexture() {
+            // Create night lights texture
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // City lights
+            ctx.fillStyle = '#ffaa44';
+            
+            // Add clusters of lights for major regions
+            const lightClusters = [
+                { x: 200, y: 220, count: 100 }, // North America
+                { x: 250, y: 340, count: 50 },  // South America
+                { x: 520, y: 240, count: 80 },  // Europe
+                { x: 550, y: 300, count: 40 },  // Africa
+                { x: 700, y: 200, count: 150 }, // East Asia
+                { x: 780, y: 250, count: 120 }, // South Asia
+                { x: 850, y: 370, count: 30 }   // Australia
+            ];
+            
+            lightClusters.forEach(cluster => {
+                for (let i = 0; i < cluster.count; i++) {
+                    const x = cluster.x + (Math.random() - 0.5) * 100;
+                    const y = cluster.y + (Math.random() - 0.5) * 80;
+                    const size = Math.random() * 2 + 0.5;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            return texture;
+        }
+
+        function createNormalTexture() {
+            // Simple normal map (flat)
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#8080ff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createSpecularTexture() {
+            // Specular map (water reflective)
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Dark base (land)
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Bright areas (water)
+            ctx.fillStyle = '#ffffff';
+            
+            // Invert the land areas from day texture
+            ctx.globalCompositeOperation = 'source-over';
+            
+            // Ocean areas should be bright
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Darken land areas (rough approximation)
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.ellipse(550, 250, 100, 120, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.ellipse(200, 220, 70, 140, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.ellipse(250, 340, 90, 100, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.ellipse(750, 200, 150, 100, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.ellipse(850, 370, 60, 40, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createAtmosphere() {
+            const atmosphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS * 1.15, 32, 32);
+            const atmosphereMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    glowColor: { value: new THREE.Color(0x4488ff) }
+                },
+                vertexShader: `
+                    varying vec3 vNormal;
+                    void main() {
+                        vNormal = normalize(normalMatrix * normal);
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 glowColor;
+                    varying vec3 vNormal;
+                    void main() {
+                        float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+                        gl_FragColor = vec4(glowColor, 1.0) * intensity;
+                    }
+                `,
+                side: THREE.BackSide,
+                blending: THREE.AdditiveBlending,
+                transparent: true
+            });
+            
+            atmosphereGlow = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            earthGroup.add(atmosphereGlow);
+        }
+
+        function createMoon() {
+            moonOrbitGroup = new THREE.Group();
+            earthGroup.add(moonOrbitGroup);
+
+            const moonGeometry = new THREE.SphereGeometry(MOON_RADIUS, 32, 32);
+            const moonMaterial = new THREE.MeshStandardMaterial({
+                color: 0xaaaaaa,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.position.x = MOON_ORBIT_RADIUS;
+            moonOrbitGroup.add(moon);
+
+            moonOrbitGroup.visible = false;
+        }
+
+        function createOrbitPath() {
+            const curve = new THREE.EllipseCurve(
+                0, 0,
+                ORBIT_RADIUS, ORBIT_RADIUS,
+                0, 2 * Math.PI,
+                false,
+                0
+            );
+
+            const points = curve.getPoints(100);
+            const geometry = new THREE.BufferGeometry().setFromPoints(
+                points.map(p => new THREE.Vector3(p.x, 0, p.y))
+            );
+
+            const material = new THREE.LineBasicMaterial({
+                color: 0x4488ff,
+                opacity: 0.4,
+                transparent: true
+            });
+
+            orbitLine = new THREE.Line(geometry, material);
+            scene.add(orbitLine);
+        }
+
+        function createSeasonLabels() {
+            const labelPositions = [
+                { angle: 0, text: 'March Equinox\n(Spring NH)', color: 0x44ff44 },
+                { angle: Math.PI / 2, text: 'June Solstice\n(Summer NH)', color: 0xffaa44 },
+                { angle: Math.PI, text: 'September Equinox\n(Autumn NH)', color: 0xff8844 },
+                { angle: Math.PI * 1.5, text: 'December Solstice\n(Winter NH)', color: 0x44aaff }
+            ];
+
+            labelPositions.forEach(pos => {
+                const x = Math.cos(pos.angle) * ORBIT_RADIUS;
+                const z = Math.sin(pos.angle) * ORBIT_RADIUS;
+
+                // Create sprite for label
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = `#${pos.color.toString(16).padStart(6, '0')}`;
+                ctx.font = 'bold 20px calibri';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const lines = pos.text.split('\n');
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, canvas.width / 2, canvas.height / 2 + (i - 0.5) * 25);
+                });
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({
+                    map: texture,
+                    transparent: true
+                });
+
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.position.set(x, 0, z);
+                sprite.scale.set(8, 4, 1);
+                scene.add(sprite);
+
+                seasonLabels.push(sprite);
+            });
+        }
+
+        function createStarfield() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starCount = 5000;
+            const positions = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount; i++) {
+                const i3 = i * 3;
+                const radius = 200 + Math.random() * 300;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+
+                positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                positions[i3 + 2] = radius * Math.cos(phi);
+            }
+
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const starsMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.5,
+                sizeAttenuation: true
+            });
+
+            starfield = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(starfield);
+        }
+
+        function updateSpeed() {
+            const value = parseFloat(speedSlider.value);
+            // Exponential scale: 10^value gives range from 0.01x to 20000x
+            // Adjusted for better range: 0.1x to 200x
+            timeScale = Math.pow(10, value);
+            speedValue.textContent = timeScale.toFixed(1) + 'x';
+        }
+
+        function togglePlayPause() {
+            isPaused = !isPaused;
+            playPauseBtn.textContent = isPaused ? 'Play' : 'Pause';
+        }
+
+        function reset() {
+            simulatedTime = 0;
+            orbitGroup.rotation.y = 0;
+            earth.rotation.y = 0;
+            moonOrbitGroup.rotation.y = 0;
+            updateDateDisplay();
+        }
+
+        function updateDateDisplay() {
+            const totalHours = simulatedTime;
+            const totalMilliseconds = totalHours * 3600 * 1000;
+            const currentDate = new Date(EPOCH.getTime() + totalMilliseconds);
+
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            const month = months[currentDate.getMonth()];
+            const day = currentDate.getDate();
+            const year = currentDate.getFullYear();
+            const hours = String(currentDate.getHours()).padStart(2, '0');
+            const minutes = String(currentDate.getMinutes()).padStart(2, '0');
+            const seconds = String(currentDate.getSeconds()).padStart(2, '0');
+
+            dateDisplay.textContent = `${month} ${day}, ${year} ${hours}:${minutes}:${seconds}`;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isPaused) {
+                const deltaTime = 1 / 60; // Assume 60fps
+                const simulatedHours = deltaTime * timeScale;
+                simulatedTime += simulatedHours;
+
+                // Earth rotation (sidereal day)
+                const rotationPerHour = (2 * Math.PI) / SIDEREAL_DAY_HOURS;
+                earth.rotation.y += rotationPerHour * simulatedHours;
+
+                // Orbital revolution (365.25 days)
+                const orbitHoursPerYear = YEAR_DAYS * 24;
+                const orbitRotationPerHour = (2 * Math.PI) / orbitHoursPerYear;
+                orbitGroup.rotation.y += orbitRotationPerHour * simulatedHours;
+
+                // Moon orbit
+                const moonOrbitHours = MOON_ORBIT_DAYS * 24;
+                const moonRotationPerHour = (2 * Math.PI) / moonOrbitHours;
+                moonOrbitGroup.rotation.y += moonRotationPerHour * simulatedHours;
+
+                // Update sun direction for shader
+                const sunWorldPos = new THREE.Vector3();
+                sun.getWorldPosition(sunWorldPos);
+                
+                const earthWorldPos = new THREE.Vector3();
+                earth.getWorldPosition(earthWorldPos);
+                
+                const sunDir = new THREE.Vector3().subVectors(sunWorldPos, earthWorldPos).normalize();
+                
+                // Transform to earth's local space
+                const earthWorldMatrix = new THREE.Matrix4();
+                earth.matrixWorld.decompose(
+                    new THREE.Vector3(),
+                    new THREE.Quaternion(),
+                    new THREE.Vector3()
+                );
+                
+                const earthInverse = new THREE.Matrix4().copy(earth.matrixWorld).invert();
+                sunDir.applyMatrix4(earthInverse).normalize();
+                
+                if (earth.material.uniforms) {
+                    earth.material.uniforms.sunDirection.value.copy(sunDir);
+                }
+
+                // Update date display periodically
+                if (Math.floor(simulatedTime * 10) % 10 === 0) {
+                    updateDateDisplay();
+                }
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
