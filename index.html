@@ -72,7 +72,8 @@
 
         const CORS_PROXIES = [
             'https://corsproxy.io/?',
-            'https://api.allorigins.win/raw?url='
+            'https://api.allorigins.win/raw?url=',
+            'https://thingproxy.freeboard.io/fetch/'
         ];
 
         function App() {
@@ -125,73 +126,178 @@
 
             const extractCaptionData = (html, videoId) => {
                 try {
-                    // Look for ytInitialPlayerResponse in the HTML
-                    const patterns = [
-                        /var ytInitialPlayerResponse = ({.+?});/,
-                        /"captions":({.+?},"videoDetails")/,
-                        /ytInitialPlayerResponse\s*=\s*({.+?});/
+                    let captionTracks = null;
+
+                    // Try to find ytInitialPlayerResponse with greedy matching
+                    const playerResponseMatch = html.match(/var ytInitialPlayerResponse = ({[\s\S]*?});/);
+                    if (playerResponseMatch) {
+                        try {
+                            const playerResponse = JSON.parse(playerResponseMatch[1]);
+                            captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+                            if (captionTracks && captionTracks.length > 0) {
+                                return captionTracks;
+                            }
+                        } catch (e) {
+                            console.warn('Failed to parse ytInitialPlayerResponse:', e);
+                        }
+                    }
+
+                    // Alternative: Find captions in the HTML using different patterns
+                    // Look for the captions object more flexibly
+                    const captionsPatterns = [
+                        /"captions":\s*{\s*"playerCaptionsTracklistRenderer":\s*{\s*"captionTracks":\s*(\[[\s\S]*?\])/,
+                        /"playerCaptionsTracklistRenderer":\s*{\s*"captionTracks":\s*(\[[\s\S]*?\])/,
+                        /"captionTracks":\s*(\[[\s\S]*?\]),\s*"translationLanguages"/
                     ];
 
-                    let playerResponse = null;
-
-                    for (const pattern of patterns) {
+                    for (const pattern of captionsPatterns) {
                         const match = html.match(pattern);
                         if (match) {
                             try {
-                                const jsonStr = match[1];
-                                // Handle the second pattern case
-                                if (pattern.source.includes('captions')) {
-                                    playerResponse = JSON.parse('{"captions":' + jsonStr);
-                                } else {
-                                    playerResponse = JSON.parse(jsonStr);
+                                const tracks = JSON.parse(match[1]);
+                                if (Array.isArray(tracks) && tracks.length > 0) {
+                                    return tracks;
                                 }
-                                break;
                             } catch (e) {
-                                continue;
+                                console.warn('Failed to parse captions pattern:', e);
                             }
                         }
                     }
 
-                    if (!playerResponse) {
-                        throw new Error('Could not find player response data');
+                    // Try parsing as complete JSON object with captions
+                    try {
+                        const jsonMatch = html.match(/ytInitialPlayerResponse\s*=\s*({[\s\S]*?});[\s\S]*?</);
+                        if (jsonMatch) {
+                            const parsed = JSON.parse(jsonMatch[1]);
+                            captionTracks = parsed?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+                            if (captionTracks && captionTracks.length > 0) {
+                                return captionTracks;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse complete JSON:', e);
                     }
 
-                    const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-                    
-                    if (!captionTracks || captionTracks.length === 0) {
-                        throw new Error('No captions available for this video');
+                    // Last resort: Extract just the captionTracks array
+                    const tracksMatch = html.match(/"captionTracks":\s*(\[[\s\S]*?\])/);
+                    if (tracksMatch) {
+                        try {
+                            // Handle potential nested closing brackets
+                            let tracksJson = tracksMatch[1];
+                            let braceCount = 0;
+                            let inString = false;
+                            let escaped = false;
+                            let endIndex = 0;
+
+                            for (let i = 0; i < tracksJson.length; i++) {
+                                const char = tracksJson[i];
+                                
+                                if (escaped) {
+                                    escaped = false;
+                                    continue;
+                                }
+
+                                if (char === '\\') {
+                                    escaped = true;
+                                    continue;
+                                }
+
+                                if (char === '"' && !escaped) {
+                                    inString = !inString;
+                                    continue;
+                                }
+
+                                if (!inString) {
+                                    if (char === '{') braceCount++;
+                                    if (char === '}') braceCount--;
+                                    if (char === ']' && braceCount === 0) {
+                                        endIndex = i + 1;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (endIndex > 0) {
+                                tracksJson = tracksJson.substring(0, endIndex);
+                            }
+
+                            const tracks = JSON.parse(tracksJson);
+                            if (Array.isArray(tracks) && tracks.length > 0) {
+                                return tracks;
+                            }
+                        } catch (e) {
+                            console.warn('Failed to parse tracks:', e);
+                        }
                     }
 
-                    return captionTracks;
+                    throw new Error('No captions available for this video');
                 } catch (err) {
                     throw new Error(`Failed to parse caption data: ${err.message}`);
                 }
             };
 
             const findEnglishCaptionUrl = (captionTracks) => {
+                if (!Array.isArray(captionTracks)) {
+                    return null;
+                }
+
                 for (const langCode of ENGLISH_VARIANTS) {
-                    const track = captionTracks.find(track => 
-                        track.languageCode === langCode || 
-                        track.vssId === `.${langCode}` ||
-                        track.vssId === `a.${langCode}` ||
-                        track.vssId === langCode
-                    );
-                    
-                    if (track && track.baseUrl) {
-                        return { url: track.baseUrl, langCode };
+                    for (const track of captionTracks) {
+                        const trackLangCode = track.languageCode || '';
+                        const trackVssId = track.vssId || '';
+                        
+                        if (
+                            trackLangCode === langCode || 
+                            trackVssId === `.${langCode}` ||
+                            trackVssId === `a.${langCode}` ||
+                            trackVssId === langCode ||
+                            trackLangCode.startsWith(langCode)
+                        ) {
+                            if (track.baseUrl) {
+                                return { url: track.baseUrl, langCode: trackLangCode };
+                            }
+                        }
                     }
                 }
+
+                // If no specific English variant found, try any English caption
+                for (const track of captionTracks) {
+                    const trackLangCode = track.languageCode || '';
+                    if (trackLangCode.toLowerCase().includes('en') && track.baseUrl) {
+                        return { url: track.baseUrl, langCode: trackLangCode };
+                    }
+                }
+
                 return null;
             };
 
             const parseCaptionXml = (xml) => {
+                if (!xml || typeof xml !== 'string') {
+                    throw new Error('Invalid caption data');
+                }
+
+                // First try to parse as XML
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xml, 'text/xml');
+                
+                // Check for XML parsing errors
+                if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+                    throw new Error('Could not parse caption XML');
+                }
+
                 const textElements = xmlDoc.getElementsByTagName('text');
                 
+                if (textElements.length === 0) {
+                    // Try alternative parsing - look for text content directly
+                    const match = xml.match(/<text[^>]*>([^<]*)<\/text>/g);
+                    if (!match || match.length === 0) {
+                        throw new Error('No captions found in XML');
+                    }
+                }
+
                 const lines = [];
                 for (let i = 0; i < textElements.length; i++) {
-                    let text = textElements[i].textContent;
+                    let text = textElements[i].textContent || '';
                     // Decode HTML entities
                     text = text.replace(/&amp;/g, '&')
                                .replace(/&lt;/g, '<')
@@ -199,12 +305,18 @@
                                .replace(/&quot;/g, '"')
                                .replace(/&#39;/g, "'")
                                .replace(/&nbsp;/g, ' ')
+                               .replace(/&apos;/g, "'")
+                               .replace(/<[^>]*>/g, '')
                                .replace(/\n/g, ' ')
                                .trim();
                     
-                    if (text) {
+                    if (text && text.length > 0) {
                         lines.push(text);
                     }
+                }
+
+                if (lines.length === 0) {
+                    throw new Error('No captions extracted from XML');
                 }
                 
                 return lines.join(' ');
@@ -227,40 +339,83 @@
                 try {
                     // Fetch YouTube page HTML
                     const youtubeUrl = `https://www.youtube.com/watch?v=${vId}`;
-                    const html = await fetchWithProxy(youtubeUrl);
+                    let html;
+                    try {
+                        html = await fetchWithProxy(youtubeUrl);
+                    } catch (proxyErr) {
+                        console.error('Proxy error:', proxyErr);
+                        setLoading(false);
+                        setError(`Network error: Could not fetch YouTube page. ${proxyErr.message}. The CORS proxies may be temporarily unavailable.`);
+                        return;
+                    }
+
+                    if (!html || html.length < 1000) {
+                        setLoading(false);
+                        setError('Received incomplete data from YouTube. The CORS proxy may have issues. Please try again.');
+                        return;
+                    }
 
                     // Extract caption tracks
-                    const captionTracks = extractCaptionData(html, vId);
+                    let captionTracks;
+                    try {
+                        captionTracks = extractCaptionData(html, vId);
+                    } catch (parseErr) {
+                        console.error('Parse error:', parseErr);
+                        setLoading(false);
+                        setError(`Failed to parse YouTube data: ${parseErr.message}. The video might not have captions or the page format changed.`);
+                        return;
+                    }
+
+                    if (!captionTracks || captionTracks.length === 0) {
+                        setLoading(false);
+                        setError('This video does not appear to have captions available. Please verify the video has subtitles/captions enabled.');
+                        return;
+                    }
 
                     // Find English caption URL
                     const captionInfo = findEnglishCaptionUrl(captionTracks);
                     
                     if (!captionInfo) {
-                        const availableLangs = captionTracks.map(t => t.languageCode || t.vssId).join(', ');
-                        setError(`No English captions found. Available languages: ${availableLangs}. Tried variants: ${ENGLISH_VARIANTS.join(', ')}`);
+                        const availableLangs = captionTracks.map(t => t.languageCode || t.vssId || 'unknown').filter(l => l).join(', ');
                         setLoading(false);
+                        setError(`No English captions found for this video. Available languages: ${availableLangs || 'none'}. Tried all 10 English variants.`);
                         return;
                     }
 
                     // Fetch caption XML
-                    const captionXml = await fetchWithProxy(captionInfo.url);
+                    let captionXml;
+                    try {
+                        captionXml = await fetchWithProxy(captionInfo.url);
+                    } catch (captionErr) {
+                        console.error('Caption fetch error:', captionErr);
+                        setLoading(false);
+                        setError(`Failed to fetch transcript data: ${captionErr.message}`);
+                        return;
+                    }
 
                     // Parse caption XML
-                    const transcriptText = parseCaptionXml(captionXml);
+                    let transcriptText;
+                    try {
+                        transcriptText = parseCaptionXml(captionXml);
+                    } catch (parseXmlErr) {
+                        console.error('XML parse error:', parseXmlErr);
+                        setLoading(false);
+                        setError(`Failed to parse transcript XML: ${parseXmlErr.message}`);
+                        return;
+                    }
 
                     if (!transcriptText || transcriptText.trim().length === 0) {
-                        setError('Transcript extraction succeeded but resulted in empty text');
                         setLoading(false);
+                        setError('Transcript extraction succeeded but resulted in empty text');
                         return;
                     }
 
                     setTranscript(transcriptText);
                     showToast(`Successfully extracted transcript (${captionInfo.langCode})!`, 'success');
                 } catch (err) {
-                    console.error('Extraction error:', err);
-                    setError(`Failed to extract transcript: ${err.message}. Please check if the video has captions enabled and is publicly accessible.`);
-                } finally {
+                    console.error('Unexpected extraction error:', err);
                     setLoading(false);
+                    setError(`An unexpected error occurred: ${err.message}`);
                 }
             };
 
