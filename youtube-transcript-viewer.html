@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Transcript Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #FF0000;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .youtube-icon {
+            width: 40px;
+            height: 28px;
+            background: #FF0000;
+            border-radius: 6px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .youtube-icon::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-40%, -50%);
+            width: 0;
+            height: 0;
+            border-left: 12px solid white;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .input-section {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #FF0000;
+            box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
+        }
+
+        button {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: #FF0000;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #CC0000;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .transcript-section {
+            margin-top: 25px;
+            display: none;
+        }
+
+        .transcript-section.visible {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .transcript-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .transcript-header h2 {
+            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .transcript-box {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 15px;
+            line-height: 1.8;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .transcript-box::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .transcript-box::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .transcript-box::-webkit-scrollbar-thumb {
+            background: #FF0000;
+            border-radius: 4px;
+        }
+
+        .transcript-box::-webkit-scrollbar-thumb:hover {
+            background: #CC0000;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.visible {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #FF0000;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .message {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.visible {
+            display: block;
+        }
+
+        .message.error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+        }
+
+        .message.success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+        }
+
+        .message.info {
+            background: #eef;
+            border: 1px solid #ccf;
+            color: #33c;
+        }
+
+        .video-info {
+            background: #f0f8ff;
+            border-left: 4px solid #FF0000;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .video-info.visible {
+            display: block;
+        }
+
+        .video-info strong {
+            color: #FF0000;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px;
+            }
+
+            .header h1 {
+                font-size: 26px;
+            }
+
+            .input-wrapper {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .transcript-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .button-group {
+                width: 100%;
+            }
+
+            .button-group button {
+                flex: 1;
+            }
+        }
+
+        .examples {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .examples strong {
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .examples code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #FF0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span class="youtube-icon"></span>
+                YouTube Transcript Viewer
+            </h1>
+            <p>Extract and download transcripts from YouTube videos</p>
+        </div>
+
+        <div class="input-section">
+            <label for="videoUrl">YouTube Video URL</label>
+            <div class="input-wrapper">
+                <input 
+                    type="text" 
+                    id="videoUrl" 
+                    placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                    autocomplete="off"
+                >
+                <button class="btn-primary" id="extractBtn" onclick="extractTranscript()">
+                    Extract Transcript
+                </button>
+            </div>
+            <div class="examples">
+                <strong>Supported URL formats:</strong>
+                <code>youtube.com/watch?v=VIDEO_ID</code>, 
+                <code>youtu.be/VIDEO_ID</code>, 
+                <code>youtube.com/embed/VIDEO_ID</code>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text">Extracting transcript...</div>
+        </div>
+
+        <div class="message" id="message"></div>
+
+        <div class="transcript-section" id="transcriptSection">
+            <div class="video-info" id="videoInfo"></div>
+            <div class="transcript-header">
+                <h2>Transcript</h2>
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="copyTranscript()">
+                        📋 Copy Transcript
+                    </button>
+                    <button class="btn-secondary" onclick="downloadTranscript()">
+                        💾 Download as .txt
+                    </button>
+                </div>
+            </div>
+            <div class="transcript-box" id="transcriptBox"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentTranscript = '';
+        let currentVideoId = '';
+
+        function extractVideoId(url) {
+            const patterns = [
+                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+                /^([a-zA-Z0-9_-]{11})$/
+            ];
+
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match && match[1]) {
+                    return match[1];
+                }
+            }
+
+            return null;
+        }
+
+        function showMessage(text, type = 'info') {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type} visible`;
+            setTimeout(() => {
+                messageEl.classList.remove('visible');
+            }, 5000);
+        }
+
+        function showLoading(show) {
+            const loadingEl = document.getElementById('loading');
+            const extractBtn = document.getElementById('extractBtn');
+            
+            if (show) {
+                loadingEl.classList.add('visible');
+                extractBtn.disabled = true;
+            } else {
+                loadingEl.classList.remove('visible');
+                extractBtn.disabled = false;
+            }
+        }
+
+        function showTranscript(transcript) {
+            const transcriptSection = document.getElementById('transcriptSection');
+            const transcriptBox = document.getElementById('transcriptBox');
+            
+            transcriptBox.textContent = transcript;
+            transcriptSection.classList.add('visible');
+            currentTranscript = transcript;
+        }
+
+        function showVideoInfo(videoId) {
+            const videoInfo = document.getElementById('videoInfo');
+            videoInfo.innerHTML = `<strong>Video ID:</strong> ${videoId}`;
+            videoInfo.classList.add('visible');
+        }
+
+        function parseTranscriptXML(xmlText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+            
+            const parseError = xmlDoc.querySelector('parsererror');
+            if (parseError) {
+                throw new Error('Failed to parse transcript XML');
+            }
+
+            const textElements = xmlDoc.getElementsByTagName('text');
+            
+            if (textElements.length === 0) {
+                throw new Error('No transcript text found in response');
+            }
+
+            let transcript = '';
+            for (let i = 0; i < textElements.length; i++) {
+                let text = textElements[i].textContent;
+                text = text.replace(/&amp;/g, '&')
+                          .replace(/&lt;/g, '<')
+                          .replace(/&gt;/g, '>')
+                          .replace(/&quot;/g, '"')
+                          .replace(/&#39;/g, "'")
+                          .replace(/\n/g, ' ')
+                          .trim();
+                
+                if (text) {
+                    transcript += text + ' ';
+                }
+            }
+
+            return transcript.trim();
+        }
+
+        async function fetchTranscriptFromYouTube(videoId) {
+            const languages = ['en', 'a.en', 'en-US', 'en-GB'];
+            const errors = [];
+
+            for (const lang of languages) {
+                try {
+                    const url = `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}`;
+                    const response = await fetch(url);
+
+                    if (response.ok) {
+                        const text = await response.text();
+                        if (text && text.trim().length > 0) {
+                            return parseTranscriptXML(text);
+                        }
+                    }
+                    errors.push(`${lang}: ${response.status}`);
+                } catch (error) {
+                    errors.push(`${lang}: ${error.message}`);
+                }
+            }
+
+            throw new Error('No transcript available for this video. The video may not have captions, or captions may be disabled.');
+        }
+
+        async function extractTranscript() {
+            const urlInput = document.getElementById('videoUrl');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                showMessage('Please enter a YouTube video URL', 'error');
+                return;
+            }
+
+            const videoId = extractVideoId(url);
+
+            if (!videoId) {
+                showMessage('Invalid YouTube URL. Please check the URL and try again.', 'error');
+                return;
+            }
+
+            currentVideoId = videoId;
+            
+            document.getElementById('transcriptSection').classList.remove('visible');
+            document.getElementById('message').classList.remove('visible');
+            showLoading(true);
+
+            try {
+                const transcript = await fetchTranscriptFromYouTube(videoId);
+                
+                if (!transcript || transcript.length === 0) {
+                    throw new Error('Transcript is empty or unavailable');
+                }
+
+                showLoading(false);
+                showVideoInfo(videoId);
+                showTranscript(transcript);
+                showMessage('Transcript extracted successfully!', 'success');
+            } catch (error) {
+                showLoading(false);
+                let errorMessage = error.message;
+
+                if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+                    errorMessage = 'Network error: Unable to connect to YouTube. Please check your internet connection and try again.';
+                } else if (errorMessage.includes('CORS')) {
+                    errorMessage = 'Access blocked: Unable to fetch transcript due to browser restrictions. The video may be private or restricted.';
+                }
+
+                showMessage(errorMessage, 'error');
+                console.error('Transcript extraction error:', error);
+            }
+        }
+
+        function copyTranscript() {
+            if (!currentTranscript) {
+                showMessage('No transcript to copy', 'error');
+                return;
+            }
+
+            navigator.clipboard.writeText(currentTranscript)
+                .then(() => {
+                    showMessage('Transcript copied to clipboard!', 'success');
+                })
+                .catch((error) => {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = currentTranscript;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    
+                    try {
+                        document.execCommand('copy');
+                        showMessage('Transcript copied to clipboard!', 'success');
+                    } catch (err) {
+                        showMessage('Failed to copy transcript. Please try selecting and copying manually.', 'error');
+                    }
+                    
+                    document.body.removeChild(textArea);
+                });
+        }
+
+        function downloadTranscript() {
+            if (!currentTranscript) {
+                showMessage('No transcript to download', 'error');
+                return;
+            }
+
+            const blob = new Blob([currentTranscript], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `youtube-transcript-${currentVideoId}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showMessage('Transcript downloaded successfully!', 'success');
+        }
+
+        document.getElementById('videoUrl').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                extractTranscript();
+            }
+        });
+
+        window.addEventListener('load', function() {
+            console.log('YouTube Transcript Viewer loaded successfully');
+        });
+    </script>
+</body>
+</html>
