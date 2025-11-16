@@ -6,7 +6,7 @@ const STORAGE_WARNING_THRESHOLD = 0.9;
 let db = null;
 let firebaseApp = null;
 
-function initializeFirebase() {
+async function initializeFirebase() {
   try {
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const databaseURL = process.env.FIREBASE_DATABASE_URL;
