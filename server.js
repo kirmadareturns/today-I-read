@@ -38,12 +38,37 @@ function isWeekend() {
   return day === 0 || day === 6;
 }
 
+function getNextChangeTimestamp() {
+  if (ALLOW_WEEKDAY_POSTING) {
+    return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  }
+  
+  const now = new Date();
+  const day = now.getUTCDay();
+  
+  let daysUntilChange;
+  if (day === 0) {
+    daysUntilChange = 1;
+  } else if (day === 6) {
+    daysUntilChange = 1;
+  } else {
+    daysUntilChange = 6 - day;
+  }
+  
+  const nextChange = new Date(now);
+  nextChange.setUTCDate(now.getUTCDate() + daysUntilChange);
+  nextChange.setUTCHours(0, 0, 0, 0);
+  
+  return nextChange.toISOString();
+}
+
 app.get('/api/status', (req, res) => {
   const weekend = isWeekend();
   res.json({
     isWeekend: weekend,
     canPost: weekend,
     currentTime: new Date().toISOString(),
+    nextChangeTimestamp: getNextChangeTimestamp(),
     timezone: 'UTC'
   });
 });
