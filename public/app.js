@@ -230,13 +230,14 @@ class TextchanApp {
     return `
       <div class="thread" data-thread-id="${thread.id}">
         <div class="thread-header">
-          <span class="thread-id">Thread #${thread.id}</span>
+          <span class="thread-id">#${thread.id}</span> 
+          Anonymous/${thread.userId} 
           <span class="thread-timestamp">${this.formatTimestamp(thread.createdAt)}</span>
         </div>
         <div class="thread-content">${this.escapeHtml(thread.body)}</div>
         <div class="thread-footer">
           <span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>
-          <button id="toggle-${thread.id}" class="btn btn-secondary">Show Replies</button>
+          <button id="toggle-${thread.id}" class="btn btn-secondary">[Show Replies]</button>
         </div>
         <div id="replies-${thread.id}" class="replies-section hidden"></div>
       </div>
@@ -248,7 +249,7 @@ class TextchanApp {
     const toggleBtn = document.getElementById(`toggle-${threadId}`);
 
     if (repliesSection.classList.contains('hidden')) {
-      toggleBtn.textContent = 'Loading...';
+      toggleBtn.textContent = '[Loading...]';
       toggleBtn.disabled = true;
       
       try {
@@ -257,18 +258,18 @@ class TextchanApp {
         
         repliesSection.innerHTML = this.renderRepliesSection(threadId, data.replies);
         repliesSection.classList.remove('hidden');
-        toggleBtn.textContent = 'Hide Replies';
+        toggleBtn.textContent = '[Hide Replies]';
         toggleBtn.disabled = false;
 
         this.setupReplyForm(threadId);
       } catch (error) {
         console.error('Failed to fetch replies:', error);
-        toggleBtn.textContent = 'Show Replies';
+        toggleBtn.textContent = '[Show Replies]';
         toggleBtn.disabled = false;
       }
     } else {
       repliesSection.classList.add('hidden');
-      toggleBtn.textContent = 'Show Replies';
+      toggleBtn.textContent = '[Show Replies]';
     }
   }
 
@@ -285,13 +286,13 @@ class TextchanApp {
       ${repliesHtml}
       <form class="reply-form" data-thread-id="${threadId}">
         <textarea 
-          placeholder="Write a reply... (max 2000 characters)"
+          placeholder="Write a reply... (max 2000 chars)"
           maxlength="2000"
           rows="3"
         ></textarea>
         <div class="form-footer">
           <div class="char-counter">
-            <span class="reply-char-count">0</span> / 2000
+            <span class="reply-char-count">0</span>/2000
           </div>
           <button type="submit" class="btn btn-primary">Post Reply</button>
         </div>
@@ -305,7 +306,8 @@ class TextchanApp {
     return `
       <div class="reply">
         <div class="reply-header">
-          <span class="thread-id">Reply #${reply.id}</span>
+          <span class="thread-id">#${reply.id}</span> 
+          Anonymous/${reply.userId} 
           <span class="thread-timestamp">${this.formatTimestamp(reply.createdAt)}</span>
         </div>
         <div class="reply-content">${this.escapeHtml(reply.body)}</div>
