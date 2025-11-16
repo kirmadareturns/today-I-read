@@ -7,33 +7,42 @@ let db = null;
 let firebaseApp = null;
 
 function initializeFirebase() {
-  try {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const databaseURL = process.env.FIREBASE_DATABASE_URL;
-    
-    if (!projectId || !databaseURL) {
-      throw new Error('Firebase environment variables are not set. Required: FIREBASE_PROJECT_ID, FIREBASE_DATABASE_URL');
+  return new Promise((resolve, reject) => {
+    try {
+      const projectId = process.env.FIREBASE_PROJECT_ID;
+      const databaseURL = process.env.FIREBASE_DATABASE_URL;
+
+      if (!projectId || !databaseURL) {
+        throw new Error('Firebase environment variables are not set. Required: FIREBASE_PROJECT_ID, FIREBASE_DATABASE_URL');
+      }
+
+      const credential = process.env.FIREBASE_SERVICE_ACCOUNT
+        ? admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+        : admin.credential.applicationDefault();
+
+      firebaseApp = admin.initializeApp({
+        credential,
+        databaseURL,
+        projectId
+      });
+
+      db = admin.database();
+
+      db.ref('.sv').once('value')
+        .then(() => {
+          console.log('Firebase initialized and database connection verified');
+          console.log(`Database URL: ${databaseURL}`);
+          resolve(db);
+        })
+        .catch(error => {
+          console.error('Firebase database connection check failed:', error);
+          reject(error);
+        });
+    } catch (error) {
+      console.error('Failed to initialize Firebase:', error);
+      reject(error);
     }
-
-    const credential = process.env.FIREBASE_SERVICE_ACCOUNT
-      ? admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
-      : admin.credential.applicationDefault();
-
-    firebaseApp = admin.initializeApp({
-      credential,
-      databaseURL,
-      projectId
-    });
-
-    db = admin.database();
-    console.log('Firebase initialized successfully');
-    console.log(`Database URL: ${databaseURL}`);
-    
-    return db;
-  } catch (error) {
-    console.error('Failed to initialize Firebase:', error);
-    throw error;
-  }
+  });
 }
 
 async function checkStorageLimit() {
