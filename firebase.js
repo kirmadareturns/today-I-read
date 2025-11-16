@@ -26,7 +26,10 @@ function initializeFirebase() {
     });
 
     db = admin.database();
-    console.log('Firebase initialized successfully');
+
+    await db.ref('.sv').once('value');
+
+    console.log('Firebase initialized and database connection verified');
     console.log(`Database URL: ${databaseURL}`);
     
     return db;
