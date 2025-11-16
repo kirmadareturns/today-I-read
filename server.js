@@ -16,15 +16,17 @@ const db = new Database(path.join(__dirname, 'textchan.db'));
 db.exec(`
   CREATE TABLE IF NOT EXISTS threads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    content TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    body TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS replies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     thread_id INTEGER NOT NULL,
-    content TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
+    body TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
     FOREIGN KEY (thread_id) REFERENCES threads(id)
   );
 `);
@@ -38,61 +40,77 @@ function isWeekend() {
   return day === 0 || day === 6;
 }
 
+function getCurrentDay() {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const now = new Date();
+  return days[now.getDay()];
+}
+
 function getNextChangeTimestamp() {
   if (ALLOW_WEEKDAY_POSTING) {
     return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
   }
   
   const now = new Date();
-  const day = now.getUTCDay();
+  const day = now.getDay();
   
   let daysUntilChange;
   if (day === 0) {
     daysUntilChange = 1;
   } else if (day === 6) {
-    daysUntilChange = 1;
+    daysUntilChange = 2;
   } else {
     daysUntilChange = 6 - day;
   }
   
   const nextChange = new Date(now);
-  nextChange.setUTCDate(now.getUTCDate() + daysUntilChange);
-  nextChange.setUTCHours(0, 0, 0, 0);
+  nextChange.setDate(now.getDate() + daysUntilChange);
+  nextChange.setHours(0, 0, 0, 0);
   
   return nextChange.toISOString();
 }
 
 app.get('/api/status', (req, res) => {
-  const weekend = isWeekend();
   res.json({
-    isWeekend: weekend,
-    canPost: weekend,
-    currentTime: new Date().toISOString(),
-    nextChangeTimestamp: getNextChangeTimestamp(),
-    timezone: 'UTC'
+    postingEnabled: isWeekend(),
+    currentDay: getCurrentDay(),
+    nextChangeTimestamp: getNextChangeTimestamp()
   });
 });
 
 app.get('/api/threads', (req, res) => {
   try {
     const threads = db.prepare(`
-      SELECT t.id, t.content, t.created_at,
-             COUNT(r.id) as reply_count
-      FROM threads t
-      LEFT JOIN replies r ON t.id = r.thread_id
-      GROUP BY t.id
-      ORDER BY t.created_at DESC
+      SELECT id, body, user_id, created_at
+      FROM threads
+      ORDER BY created_at DESC
     `).all();
     
-    res.json({
-      threads: threads.map(t => ({
-        id: t.id,
-        content: t.content,
-        createdAt: t.created_at,
-        replyCount: t.reply_count
-      }))
+    const threadsWithReplies = threads.map(thread => {
+      const replies = db.prepare(`
+        SELECT id, body, user_id, created_at
+        FROM replies
+        WHERE thread_id = ?
+        ORDER BY created_at ASC
+      `).all(thread.id);
+      
+      return {
+        id: thread.id,
+        body: thread.body,
+        userId: thread.user_id,
+        createdAt: thread.created_at,
+        replies: replies.map(r => ({
+          id: r.id,
+          body: r.body,
+          userId: r.user_id,
+          createdAt: r.created_at
+        }))
+      };
     });
+    
+    res.json(threadsWithReplies);
   } catch (error) {
+    console.error('Error fetching threads:', error);
     res.status(500).json({ error: 'Failed to fetch threads' });
   }
 });
@@ -100,33 +118,41 @@ app.get('/api/threads', (req, res) => {
 app.post('/api/threads', (req, res) => {
   if (!isWeekend()) {
     return res.status(403).json({
-      error: 'Posting is only allowed on weekends',
-      code: 'WEEKEND_ONLY'
+      error: 'Posting is only allowed on weekends'
     });
   }
 
-  const { content } = req.body;
+  const { body, userId } = req.body;
   
-  if (!content || content.trim().length === 0) {
-    return res.status(400).json({ error: 'Content is required' });
+  if (!body || body.trim().length === 0) {
+    return res.status(400).json({ error: 'Body is required' });
   }
 
-  if (content.length > 2000) {
-    return res.status(400).json({ error: 'Content too long (max 2000 characters)' });
+  if (!userId || userId.trim().length === 0) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  const trimmedBody = body.trim();
+  
+  if (trimmedBody.length > 2000) {
+    return res.status(400).json({ error: 'Body too long (max 2000 characters)' });
   }
 
   try {
+    const createdAt = new Date().toISOString();
     const result = db.prepare(
-      'INSERT INTO threads (content, created_at) VALUES (?, ?)'
-    ).run(content.trim(), Date.now());
+      'INSERT INTO threads (body, user_id, created_at) VALUES (?, ?, ?)'
+    ).run(trimmedBody, userId.trim(), createdAt);
 
     res.status(201).json({
       id: result.lastInsertRowid,
-      content: content.trim(),
-      createdAt: Date.now(),
-      replyCount: 0
+      body: trimmedBody,
+      userId: userId.trim(),
+      createdAt: createdAt,
+      replies: []
     });
   } catch (error) {
+    console.error('Error creating thread:', error);
     res.status(500).json({ error: 'Failed to create thread' });
   }
 });
@@ -146,7 +172,7 @@ app.get('/api/threads/:threadId/replies', (req, res) => {
     }
 
     const replies = db.prepare(`
-      SELECT id, content, created_at
+      SELECT id, body, user_id, created_at
       FROM replies
       WHERE thread_id = ?
       ORDER BY created_at ASC
@@ -155,16 +181,19 @@ app.get('/api/threads/:threadId/replies', (req, res) => {
     res.json({
       thread: {
         id: thread.id,
-        content: thread.content,
+        body: thread.body,
+        userId: thread.user_id,
         createdAt: thread.created_at
       },
       replies: replies.map(r => ({
         id: r.id,
-        content: r.content,
+        body: r.body,
+        userId: r.user_id,
         createdAt: r.created_at
       }))
     });
   } catch (error) {
+    console.error('Error fetching thread:', error);
     res.status(500).json({ error: 'Failed to fetch thread' });
   }
 });
@@ -172,24 +201,29 @@ app.get('/api/threads/:threadId/replies', (req, res) => {
 app.post('/api/threads/:threadId/replies', (req, res) => {
   if (!isWeekend()) {
     return res.status(403).json({
-      error: 'Posting is only allowed on weekends',
-      code: 'WEEKEND_ONLY'
+      error: 'Posting is only allowed on weekends'
     });
   }
 
   const threadId = parseInt(req.params.threadId);
-  const { content } = req.body;
+  const { body, userId } = req.body;
 
   if (isNaN(threadId)) {
     return res.status(400).json({ error: 'Invalid thread ID' });
   }
 
-  if (!content || content.trim().length === 0) {
-    return res.status(400).json({ error: 'Content is required' });
+  if (!body || body.trim().length === 0) {
+    return res.status(400).json({ error: 'Body is required' });
   }
 
-  if (content.length > 2000) {
-    return res.status(400).json({ error: 'Content too long (max 2000 characters)' });
+  if (!userId || userId.trim().length === 0) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  const trimmedBody = body.trim();
+
+  if (trimmedBody.length > 2000) {
+    return res.status(400).json({ error: 'Body too long (max 2000 characters)' });
   }
 
   try {
@@ -199,19 +233,29 @@ app.post('/api/threads/:threadId/replies', (req, res) => {
       return res.status(404).json({ error: 'Thread not found' });
     }
 
+    const createdAt = new Date().toISOString();
     const result = db.prepare(
-      'INSERT INTO replies (thread_id, content, created_at) VALUES (?, ?, ?)'
-    ).run(threadId, content.trim(), Date.now());
+      'INSERT INTO replies (thread_id, body, user_id, created_at) VALUES (?, ?, ?, ?)'
+    ).run(threadId, trimmedBody, userId.trim(), createdAt);
 
     res.status(201).json({
       id: result.lastInsertRowid,
       threadId: threadId,
-      content: content.trim(),
-      createdAt: Date.now()
+      body: trimmedBody,
+      userId: userId.trim(),
+      createdAt: createdAt
     });
   } catch (error) {
+    console.error('Error creating reply:', error);
     res.status(500).json({ error: 'Failed to create reply' });
   }
+});
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error'
+  });
 });
 
 app.get('*', (req, res) => {
