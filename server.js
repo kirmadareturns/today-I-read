@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -25,61 +26,46 @@ function isWeekend() {
     return true;
   }
   const now = new Date();
-  const day = now.getDay();
+  const day = now.getUTCDay();
   return day === 0 || day === 6;
 }
 
-function getCurrentDay() {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const now = new Date();
-  return days[now.getDay()];
-}
-
 function getNextChangeTimestamp() {
-  if (ALLOW_WEEKDAY_POSTING) {
-    return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-  }
-  
   const now = new Date();
-  const day = now.getDay();
-  
+  const day = now.getUTCDay();
+  const hours = now.getUTCHours();
+  const minutes = now.getUTCMinutes();
+  const seconds = now.getUTCSeconds();
+
   let daysUntilChange;
   if (day === 0) {
     daysUntilChange = 1;
-  } else if (day === 6) {
-    daysUntilChange = 2;
-  } else {
+  } else if (day > 0 && day < 6) {
     daysUntilChange = 6 - day;
+  } else {
+    daysUntilChange = 2;
   }
   
   const nextChange = new Date(now);
-  nextChange.setDate(now.getDate() + daysUntilChange);
-  nextChange.setHours(0, 0, 0, 0);
+  nextChange.setUTCDate(now.getUTCDate() + daysUntilChange);
+  nextChange.setUTCHours(0, 0, 0, 0);
   
   return nextChange.toISOString();
 }
 
 app.get('/api/status', async (req, res) => {
+  let storageStatus = { limitReached: false, usagePercent: 0 };
   try {
-    const storageStatus = await checkStorageLimit();
-    
-    res.json({
-      postingEnabled: isWeekend(),
-      currentDay: getCurrentDay(),
-      nextChangeTimestamp: getNextChangeTimestamp(),
-      storage: {
-        limitReached: storageStatus.limitReached,
-        usagePercent: storageStatus.usagePercent
-      }
-    });
+    storageStatus = await checkStorageLimit();
   } catch (error) {
-    console.error('Error fetching status:', error);
-    res.json({
-      postingEnabled: isWeekend(),
-      currentDay: getCurrentDay(),
-      nextChangeTimestamp: getNextChangeTimestamp()
-    });
+    console.error('Error fetching storage status:', error);
   }
+
+  res.json({
+    postingEnabled: isWeekend(),
+    nextChangeTimestamp: getNextChangeTimestamp(),
+    storage: storageStatus,
+  });
 });
 
 app.get('/api/threads', async (req, res) => {

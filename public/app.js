@@ -239,7 +239,7 @@ class TextchanApp {
           <span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>
           <button id="toggle-${thread.id}" class="btn btn-secondary">[Show Replies]</button>
         </div>
-        <div id="replies-${thread.id}" class="replies-section hidden"></div>
+        <div id="replies-${thread.id}" class.replies-section hidden"></div>
       </div>
     `;
   }
@@ -408,7 +408,7 @@ class TextchanApp {
       await this.fetchThreads();
     } catch (error) {
       console.error('Failed to create thread:', error);
-      errorMessage.textContent = 'Network error. Please try again.';
+      errorMessage.textContent = 'A network error occurred. The server might be down or your connection is unstable. Please try again later.';
       errorMessage.classList.add('visible');
       button.disabled = false;
       button.classList.remove('loading');
@@ -481,7 +481,7 @@ class TextchanApp {
       await this.fetchThreads();
     } catch (error) {
       console.error('Failed to create reply:', error);
-      errorMessage.textContent = 'Network error. Please try again.';
+      errorMessage.textContent = 'A network error occurred. The server might be down or your connection is unstable. Please try again later.';
       errorMessage.classList.add('visible');
       button.disabled = false;
       button.classList.remove('loading');
