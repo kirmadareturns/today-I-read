@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const Database = require('better-sqlite3');
+const sqlite3 = require('sqlite3').verbose();
+const { promisify } = require('util');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,25 +12,40 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const db = new Database(path.join(__dirname, 'textchan.db'));
+const db = new sqlite3.Database(path.join(__dirname, 'textchan.db'));
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS threads (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    body TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
+const dbRun = promisify(db.run.bind(db));
+const dbGet = promisify(db.get.bind(db));
+const dbAll = promisify(db.all.bind(db));
 
-  CREATE TABLE IF NOT EXISTS replies (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    thread_id INTEGER NOT NULL,
-    body TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (thread_id) REFERENCES threads(id)
-  );
-`);
+async function initDatabase() {
+  try {
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS threads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        body TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `);
+
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS replies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        thread_id INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (thread_id) REFERENCES threads(id)
+      )
+    `);
+
+    console.log('Database initialized successfully');
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    process.exit(1);
+  }
+}
 
 function isWeekend() {
   if (ALLOW_WEEKDAY_POSTING) {
@@ -78,21 +94,21 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-app.get('/api/threads', (req, res) => {
+app.get('/api/threads', async (req, res) => {
   try {
-    const threads = db.prepare(`
+    const threads = await dbAll(`
       SELECT id, body, user_id, created_at
       FROM threads
       ORDER BY created_at DESC
-    `).all();
+    `);
     
-    const threadsWithReplies = threads.map(thread => {
-      const replies = db.prepare(`
+    const threadsWithReplies = await Promise.all(threads.map(async (thread) => {
+      const replies = await dbAll(`
         SELECT id, body, user_id, created_at
         FROM replies
         WHERE thread_id = ?
         ORDER BY created_at ASC
-      `).all(thread.id);
+      `, thread.id);
       
       return {
         id: thread.id,
@@ -106,7 +122,7 @@ app.get('/api/threads', (req, res) => {
           createdAt: r.created_at
         }))
       };
-    });
+    }));
     
     res.json(threadsWithReplies);
   } catch (error) {
@@ -115,7 +131,7 @@ app.get('/api/threads', (req, res) => {
   }
 });
 
-app.post('/api/threads', (req, res) => {
+app.post('/api/threads', async (req, res) => {
   if (!isWeekend()) {
     return res.status(403).json({
       error: 'Posting is only allowed on weekends'
@@ -140,12 +156,19 @@ app.post('/api/threads', (req, res) => {
 
   try {
     const createdAt = new Date().toISOString();
-    const result = db.prepare(
-      'INSERT INTO threads (body, user_id, created_at) VALUES (?, ?, ?)'
-    ).run(trimmedBody, userId.trim(), createdAt);
+    const result = await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO threads (body, user_id, created_at) VALUES (?, ?, ?)',
+        [trimmedBody, userId.trim(), createdAt],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID });
+        }
+      );
+    });
 
     res.status(201).json({
-      id: result.lastInsertRowid,
+      id: result.lastID,
       body: trimmedBody,
       userId: userId.trim(),
       createdAt: createdAt,
@@ -157,7 +180,7 @@ app.post('/api/threads', (req, res) => {
   }
 });
 
-app.get('/api/threads/:threadId/replies', (req, res) => {
+app.get('/api/threads/:threadId/replies', async (req, res) => {
   const threadId = parseInt(req.params.threadId);
 
   if (isNaN(threadId)) {
@@ -165,18 +188,18 @@ app.get('/api/threads/:threadId/replies', (req, res) => {
   }
 
   try {
-    const thread = db.prepare('SELECT * FROM threads WHERE id = ?').get(threadId);
+    const thread = await dbGet('SELECT * FROM threads WHERE id = ?', threadId);
     
     if (!thread) {
       return res.status(404).json({ error: 'Thread not found' });
     }
 
-    const replies = db.prepare(`
+    const replies = await dbAll(`
       SELECT id, body, user_id, created_at
       FROM replies
       WHERE thread_id = ?
       ORDER BY created_at ASC
-    `).all(threadId);
+    `, threadId);
 
     res.json({
       thread: {
@@ -198,7 +221,7 @@ app.get('/api/threads/:threadId/replies', (req, res) => {
   }
 });
 
-app.post('/api/threads/:threadId/replies', (req, res) => {
+app.post('/api/threads/:threadId/replies', async (req, res) => {
   if (!isWeekend()) {
     return res.status(403).json({
       error: 'Posting is only allowed on weekends'
@@ -227,19 +250,26 @@ app.post('/api/threads/:threadId/replies', (req, res) => {
   }
 
   try {
-    const thread = db.prepare('SELECT * FROM threads WHERE id = ?').get(threadId);
+    const thread = await dbGet('SELECT * FROM threads WHERE id = ?', threadId);
     
     if (!thread) {
       return res.status(404).json({ error: 'Thread not found' });
     }
 
     const createdAt = new Date().toISOString();
-    const result = db.prepare(
-      'INSERT INTO replies (thread_id, body, user_id, created_at) VALUES (?, ?, ?, ?)'
-    ).run(threadId, trimmedBody, userId.trim(), createdAt);
+    const result = await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO replies (thread_id, body, user_id, created_at) VALUES (?, ?, ?, ?)',
+        [threadId, trimmedBody, userId.trim(), createdAt],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID });
+        }
+      );
+    });
 
     res.status(201).json({
-      id: result.lastInsertRowid,
+      id: result.lastID,
       threadId: threadId,
       body: trimmedBody,
       userId: userId.trim(),
@@ -262,15 +292,28 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Textchan server running on http://localhost:${PORT}`);
-  console.log(`Weekend posting: ${isWeekend() ? 'ENABLED' : 'DISABLED'}`);
-  if (ALLOW_WEEKDAY_POSTING) {
-    console.log('⚠️  Weekday posting override is ACTIVE');
-  }
+async function startServer() {
+  await initDatabase();
+  
+  app.listen(PORT, () => {
+    console.log(`Textchan server running on http://localhost:${PORT}`);
+    console.log(`Weekend posting: ${isWeekend() ? 'ENABLED' : 'DISABLED'}`);
+    if (ALLOW_WEEKDAY_POSTING) {
+      console.log('⚠️  Weekday posting override is ACTIVE');
+    }
+  });
+}
+
+startServer().catch(error => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
 
 process.on('SIGINT', () => {
-  db.close();
-  process.exit(0);
+  db.close((err) => {
+    if (err) {
+      console.error('Error closing database:', err);
+    }
+    process.exit(0);
+  });
 });
