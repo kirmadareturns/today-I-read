@@ -37,6 +37,7 @@ function initializeFirebase() {
     }
   });
 }
+
 async function checkStorageLimit() {
   try {
     const snapshot = await db.ref('/').get();
@@ -87,25 +88,36 @@ async function createThread(body, userId, createdAt) {
 }
 
 async function getAllThreads() {
-  const snapshot = await db.ref('threads').orderByChild('createdAt').once('value');
-  const threadsData = snapshot.val() || {};
-  
-  const threads = await Promise.all(
-    Object.entries(threadsData).map(async ([threadId, thread]) => {
-      const replies = await getRepliesByThreadId(threadId);
+  try {
+    const threadsSnapshot = await db.ref('threads').once('value');
+    const threadsData = threadsSnapshot.val() || {};
+    
+    const threads = Object.entries(threadsData).map(([threadId, thread]) => {
+      const threadReplies = (thread.replies && Object.entries(thread.replies).map(([replyId, reply]) => ({
+        id: replyId,
+        body: reply.body,
+        userId: reply.userId,
+        createdAt: reply.createdAt
+      }))) || [];
+      
+      threadReplies.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      
       return {
         id: threadId,
         body: thread.body,
         userId: thread.userId,
         createdAt: thread.createdAt,
-        replies
+        replies: threadReplies
       };
-    })
-  );
-  
-  threads.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  
-  return threads;
+    });
+    
+    threads.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    return threads;
+  } catch (error) {
+    console.error('Error fetching threads:', error);
+    return [];
+  }
 }
 
 async function getThreadById(threadId) {
@@ -125,7 +137,7 @@ async function getThreadById(threadId) {
 }
 
 async function getRepliesByThreadId(threadId) {
-  const snapshot = await db.ref(`threads/${threadId}/replies`).orderByChild('createdAt').once('value');
+  const snapshot = await db.ref(`threads/${threadId}/replies`).once('value');
   const repliesData = snapshot.val() || {};
   
   const replies = Object.entries(repliesData).map(([replyId, reply]) => ({
