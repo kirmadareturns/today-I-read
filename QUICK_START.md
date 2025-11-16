@@ -1,133 +1,170 @@
-# Quick Start: Deploy textchan to Fly.io
+# Quick Start: Deploy textchan to Render
 
-Ultra-quick guide to deploy textchan to Fly.io in 5 minutes.
+Ultra-quick guide to deploy textchan to Render in 5 minutes - **no credit card required**.
 
 ## Prerequisites
 
-- [ ] Fly.io account created (https://fly.io/signup)
-- [ ] Fly CLI installed
+- [ ] GitHub account (to connect repository)
+- [ ] Render account created (https://render.com/signup) - **free, no credit card needed**
 - [ ] Firebase project set up (see FIREBASE_SETUP.md if not)
+- [ ] Code pushed to GitHub repository
 
 ## 🚀 5-Minute Deployment
 
-### 1. Install Fly CLI (if not installed)
+### 1. Create Render Account
 
-**macOS:**
-```bash
-brew install flyctl
-```
+Go to [render.com](https://render.com) and sign up with GitHub (or email).
 
-**Linux/macOS (alternative):**
-```bash
-curl -L https://fly.io/install.sh | sh
-```
+**No credit card required!** ✅
 
-**Windows:**
-```powershell
-iwr https://fly.io/install.ps1 -useb | iex
-```
+### 2. Create New Web Service
 
-### 2. Authenticate
+1. Click **New +** → **Web Service**
+2. Connect your GitHub account (if not already connected)
+3. Select your repository (e.g., `kirmadareturns/today-I-read`)
+4. Click **Connect**
 
-```bash
-flyctl auth login
-```
+### 3. Configure Service
 
-### 3. Navigate to Project
+**Basic settings:**
+- **Name**: `textchan` (or your choice)
+- **Region**: Choose closest to your users (e.g., Oregon or Ohio)
+- **Branch**: `main` (or your deployment branch)
 
-```bash
-cd /path/to/textchan
-```
+**Build settings:**
+- **Runtime**: `Node`
+- **Build Command**: `npm install`
+- **Start Command**: `npm start`
 
-### 4. Launch App
+**Plan:**
+- **Instance Type**: `Free`
 
-```bash
-flyctl launch
-```
+### 4. Set Environment Variables
 
-**Answer prompts:**
-- App name: `textchan` (or your choice - must be globally unique)
-- Region: Select closest to your users (e.g., `sjc` for US West)
-- Postgres: `NO`
-- Redis: `NO`
-- Deploy now: `YES`
+Click **Add Environment Variable** for each:
 
-### 5. Set Firebase Secrets
+1. **FIREBASE_PROJECT_ID**
+   - Value: `your-firebase-project-id`
 
-```bash
-# Set your Firebase project ID
-flyctl secrets set FIREBASE_PROJECT_ID="your-firebase-project-id"
+2. **FIREBASE_DATABASE_URL**
+   - Value: `https://your-project-id-default-rtdb.firebaseio.com`
 
-# Set your Firebase database URL
-flyctl secrets set FIREBASE_DATABASE_URL="https://your-project-id-default-rtdb.firebaseio.com"
-
-# Set your Firebase service account (get from Firebase Console > Settings > Service Accounts > Generate Key)
-flyctl secrets set FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"your-project","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"..."}'
-```
+3. **FIREBASE_SERVICE_ACCOUNT**
+   - Value: Your service account JSON as single-line string
+   - Get from: Firebase Console > Settings > Service Accounts > Generate Key
+   - Convert to single line: `cat serviceAccountKey.json | jq -c`
+   - Example: `{"type":"service_account","project_id":"...","private_key":"...","client_email":"..."}`
 
 **Optional: Enable weekday posting for testing:**
-```bash
-flyctl secrets set ALLOW_WEEKDAY_POSTING=true
-```
 
-### 6. Deploy
+4. **ALLOW_WEEKDAY_POSTING**
+   - Value: `true` (change to `false` for production)
 
-```bash
-flyctl deploy
-```
+### 5. Deploy
 
-### 7. Open App
+Click **Create Web Service**
 
-```bash
-flyctl open
-```
+Render will:
+- Clone your repository
+- Run `npm install`
+- Start server with `npm start`
+- Assign URL like `https://textchan-xxxxx.onrender.com`
+
+**Note:** First deployment takes 2-5 minutes.
+
+### 6. Open Your App
+
+Click the URL at the top of the dashboard (e.g., `https://textchan-xxxxx.onrender.com`)
+
+**Note:** First request may take 10-30 seconds (cold start), then it's fast!
 
 ## ✅ Verify Deployment
 
-Visit your app at `https://<app-name>.fly.dev` and check:
+Visit your Render URL and check:
 
-- [ ] Homepage loads quickly (<2 seconds)
-- [ ] Countdown timer appears
+- [ ] Homepage loads (first load: 10-30s, then fast)
+- [ ] Countdown timer appears and works
 - [ ] Can view threads (if any exist)
 - [ ] Can create thread (if weekend or ALLOW_WEEKDAY_POSTING=true)
 - [ ] Anonymous user ID persists across page reloads
+- [ ] Posts save to Firebase
+
+**Test API status:**
+```bash
+curl https://textchan-xxxxx.onrender.com/api/status
+```
+
+Expected response:
+```json
+{
+  "postingEnabled": true,
+  "currentDay": "Saturday",
+  "nextChangeTimestamp": "...",
+  "storage": {
+    "limitReached": false,
+    "usagePercent": 0.5
+  }
+}
+```
 
 ## 🎉 Done!
 
-Your textchan instance is now live on Fly.io!
+Your textchan instance is now live on Render - **100% free, no credit card!**
+
+**Your live URL:** `https://textchan-xxxxx.onrender.com`
 
 **Next steps:**
-- View logs: `flyctl logs`
-- Check status: `flyctl status`
-- Set up custom domain (optional): See FLY_DEPLOYMENT.md
-- Test thoroughly: See FLY_MIGRATION_CHECKLIST.md
+- View logs: Render Dashboard → Logs tab
+- Set up custom domain (optional): See RENDER_DEPLOYMENT.md
+- Test thoroughly: See TEST_CHECKLIST.md
+- Share with users and wait for the weekend! 🎉
 
 ## 📚 Full Documentation
 
-- **Detailed deployment guide:** [FLY_DEPLOYMENT.md](./FLY_DEPLOYMENT.md)
-- **Migration checklist:** [FLY_MIGRATION_CHECKLIST.md](./FLY_MIGRATION_CHECKLIST.md)
+- **Detailed deployment guide:** [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md)
 - **All deployment options:** [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
 - **Firebase setup:** [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
+- **Testing guide:** [TEST_CHECKLIST.md](./TEST_CHECKLIST.md)
 
 ## 🆘 Troubleshooting
 
 **App not starting?**
+1. Go to Render Dashboard → Your service → Logs
+2. Look for error messages
+3. Verify environment variables are set correctly
+
+**Firebase connection error?**
+- Check `FIREBASE_PROJECT_ID` and `FIREBASE_DATABASE_URL` are correct
+- Verify `FIREBASE_SERVICE_ACCOUNT` is valid JSON (no syntax errors)
+- Check Firebase Console that Realtime Database is enabled
+
+**Posts not working?**
+- Check `/api/status` - verify `postingEnabled: true`
+- Remember: posting only works on weekends (Saturday/Sunday UTC)
+- Or set `ALLOW_WEEKDAY_POSTING=true` for testing
+
+**Slow first load?**
+- Expected behavior on free tier (spin-down after 15 min)
+- First request: 10-30 seconds
+- Subsequent requests: fast (<2s)
+- Upgrade to $7/month Starter plan for no spin-down
+
+**Need help?** See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) troubleshooting section.
+
+## 🔄 Auto-Deploy
+
+Render automatically redeploys when you push to your connected branch:
+
 ```bash
-flyctl logs
+git add .
+git commit -m "Update feature"
+git push origin main
 ```
 
-**Check secrets are set:**
-```bash
-flyctl secrets list
-```
-
-**Redeploy:**
-```bash
-flyctl deploy
-```
-
-**Need help?** See [FLY_DEPLOYMENT.md](./FLY_DEPLOYMENT.md) troubleshooting section.
+Render detects the push and redeploys automatically! ✨
 
 ---
 
-**That's it!** Your textchan is now running on Fly.io with no spin-down delays. 🎉
+**That's it!** Your textchan is now running on Render with **no credit card required**. 🎉
+
+**Remember:** Free tier has spin-down delays, but it's truly free and functional!
