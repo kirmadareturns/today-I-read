@@ -10,7 +10,7 @@
   <div class="container">
     <header class="header">
       <h1>textchan</h1>
-      <p class="tagline">weekend-only anonymous textboard</p>
+      <span class="tagline">weekend-only anonymous textboard</span>
     </header>
 
     <section class="status-section">
@@ -21,9 +21,7 @@
     </section>
 
     <section class="user-id-section">
-      <div class="user-id-display">
-        Your anonymous ID: <span id="user-id" class="user-id">generating...</span>
-      </div>
+      Your ID: <span id="user-id" class="user-id">generating...</span>
     </section>
 
     <section class="new-thread-section">
@@ -31,13 +29,13 @@
       <form id="new-thread-form" class="post-form">
         <textarea 
           id="thread-content" 
-          placeholder="If you’re here, say something (max 2000 characters)"
+          placeholder="What's on your mind? (max 2000 chars)"
           maxlength="2000"
           rows="4"
         ></textarea>
         <div class="form-footer">
           <div class="char-counter">
-            <span id="thread-char-count">0</span> / 2000
+            <span id="thread-char-count">0</span>/2000
           </div>
           <button type="submit" class="btn btn-primary">Post Thread</button>
         </div>
