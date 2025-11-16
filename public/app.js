@@ -79,7 +79,7 @@ class TextchanApp {
     const threadDisabledMessage = document.getElementById('thread-disabled-message');
     const threadError = document.getElementById('thread-error');
 
-    if (this.status.canPost) {
+    if (this.status.postingEnabled) {
       banner.className = 'status-banner enabled';
       statusMessage.textContent = '✓ Posting is currently enabled';
       threadContent.disabled = false;
@@ -107,7 +107,7 @@ class TextchanApp {
       const disabledMessage = form.querySelector('.disabled-message');
       const errorMessage = form.querySelector('.error-message');
 
-      if (this.status && this.status.canPost) {
+      if (this.status && this.status.postingEnabled) {
         textarea.disabled = false;
         button.disabled = false;
         if (disabledMessage) disabledMessage.classList.remove('visible');
@@ -169,7 +169,7 @@ class TextchanApp {
     if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes}m`);
     parts.push(`${seconds}s`);
 
-    const action = this.status.canPost ? 'until posting closes' : 'until posting opens';
+    const action = this.status.postingEnabled ? 'until posting closes' : 'until posting opens';
     countdownEl.textContent = `${parts.join(' ')} ${action}`;
   }
 
@@ -177,7 +177,7 @@ class TextchanApp {
     try {
       const response = await fetch('/api/threads');
       const data = await response.json();
-      this.threads = data.threads;
+      this.threads = data;
       this.renderThreads();
     } catch (error) {
       console.error('Failed to fetch threads:', error);
@@ -206,15 +206,16 @@ class TextchanApp {
   }
 
   renderThread(thread) {
+    const replyCount = thread.replies.length;
     return `
       <div class="thread" data-thread-id="${thread.id}">
         <div class="thread-header">
           <span class="thread-id">Thread #${thread.id}</span>
           <span class="thread-timestamp">${this.formatTimestamp(thread.createdAt)}</span>
         </div>
-        <div class="thread-content">${this.escapeHtml(thread.content)}</div>
+        <div class="thread-content">${this.escapeHtml(thread.body)}</div>
         <div class="thread-footer">
-          <span class="reply-count">${thread.replyCount} ${thread.replyCount === 1 ? 'reply' : 'replies'}</span>
+          <span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>
           <button id="toggle-${thread.id}" class="btn btn-secondary">Show Replies</button>
         </div>
         <div id="replies-${thread.id}" class="replies-section hidden"></div>
@@ -287,7 +288,7 @@ class TextchanApp {
           <span class="thread-id">Reply #${reply.id}</span>
           <span class="thread-timestamp">${this.formatTimestamp(reply.createdAt)}</span>
         </div>
-        <div class="reply-content">${this.escapeHtml(reply.content)}</div>
+        <div class="reply-content">${this.escapeHtml(reply.body)}</div>
       </div>
     `;
   }
@@ -312,7 +313,7 @@ class TextchanApp {
       const button = form.querySelector('button[type="submit"]');
       const disabledMessage = form.querySelector('.disabled-message');
       
-      if (!this.status.canPost) {
+      if (!this.status.postingEnabled) {
         textarea.disabled = true;
         button.disabled = true;
         disabledMessage.textContent = 'Posting is only allowed on weekends';
@@ -353,7 +354,7 @@ class TextchanApp {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          content: content,
+          body: content,
           userId: this.userId
         })
       });
@@ -361,7 +362,7 @@ class TextchanApp {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.code === 'WEEKEND_ONLY') {
+        if (response.status === 403) {
           errorMessage.textContent = 'Posting is only allowed on weekends. Please wait until the weekend to post.';
         } else {
           errorMessage.textContent = data.error || 'Failed to create thread';
@@ -421,7 +422,7 @@ class TextchanApp {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          content: content,
+          body: content,
           userId: this.userId
         })
       });
@@ -429,7 +430,7 @@ class TextchanApp {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.code === 'WEEKEND_ONLY') {
+        if (response.status === 403) {
           errorMessage.textContent = 'Posting is only allowed on weekends. Please wait until the weekend to post.';
         } else {
           errorMessage.textContent = data.error || 'Failed to create reply';
