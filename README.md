@@ -507,55 +507,57 @@ Textchan can be deployed to various platforms. Since it uses Firebase Realtime D
 
 ### Platform Options
 
-#### Option 1: Fly.io (Recommended)
+#### Option 1: Render (Recommended for Free Hosting)
 
-[Fly.io](https://fly.io) provides always-on hosting with no spin-down delays, perfect for handling viral weekend traffic.
+[Render](https://render.com) provides free Node.js hosting **without requiring a credit card**.
 
-**Why Fly.io:**
-- **No spin-down**: Always running, instant response times (no 50+ second delays)
-- **Free tier**: 3 shared-cpu-1x 256MB VMs included
-- **Better performance**: Faster than other free tiers
-- **Global distribution**: Deploy close to your users
-- **160GB outbound data/month** on free tier
+**Why Render:**
+- **No credit card required**: Free tier is truly free with no payment method needed
+- **Auto-deploy from Git**: Automatic deployments when you push to GitHub
+- **Easy setup**: Web-based UI, no CLI installation required
+- **Free SSL**: Automatic HTTPS certificates
+- **Custom domains**: Free custom domain support
 
 **Quick Start:**
 
-1. Install Fly CLI: `brew install flyctl` (or see [docs](https://fly.io/docs/hands-on/install-flyctl/))
-2. Log in: `flyctl auth login`
-3. Launch your app: `flyctl launch`
-4. Set Firebase secrets:
-   ```bash
-   flyctl secrets set FIREBASE_PROJECT_ID="your-project-id"
-   flyctl secrets set FIREBASE_DATABASE_URL="https://your-project-id-default-rtdb.firebaseio.com"
-   flyctl secrets set FIREBASE_SERVICE_ACCOUNT='{"type":"service_account",...}'
-   ```
-5. Deploy: `flyctl deploy`
+1. Go to [render.com](https://render.com) and create a free account
+2. Click **New +** → **Web Service**
+3. Connect your GitHub repository
+4. Configure:
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+5. Set environment variables:
+   - `FIREBASE_PROJECT_ID`: Your Firebase project ID
+   - `FIREBASE_DATABASE_URL`: Your Firebase database URL  
+   - `FIREBASE_SERVICE_ACCOUNT`: Service account JSON (stringified, single line)
+6. Click **Create Web Service**
 
-**📘 Full deployment guide**: See [FLY_DEPLOYMENT.md](./FLY_DEPLOYMENT.md) for detailed step-by-step instructions, custom domain setup, troubleshooting, and more.
+**📘 Full deployment guide**: See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for complete step-by-step instructions, Firebase setup, custom domains, troubleshooting, and more.
 
-**No volumes needed**: Firebase handles all data storage in the cloud, so no persistent disks required.
+**Trade-off**: Render's free tier spins down after 15 minutes of inactivity, resulting in 10-30 second cold starts on first request. Subsequent requests are fast. For $7/month, you can upgrade to always-on hosting.
 
 ---
 
-#### Option 2: Render
+#### Option 2: Fly.io
 
-[Render](https://render.com) supports Node.js web services with easy deployment.
+[Fly.io](https://fly.io) provides always-on hosting with no spin-down delays.
+
+**Why Fly.io:**
+- **No spin-down**: Always running, instant response times
+- **Better performance**: Faster than other free tiers
+- **Global distribution**: Deploy close to your users
+
+**Drawback:** Requires credit card for free tier (as of 2024).
 
 **Steps:**
 
-1. Create a new Web Service on Render
-2. Connect your Git repository
-3. Configure build settings:
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-4. Set environment variables:
-   - `FIREBASE_PROJECT_ID`: Your Firebase project ID
-   - `FIREBASE_DATABASE_URL`: Your Firebase database URL
-   - `FIREBASE_SERVICE_ACCOUNT`: Service account JSON (stringified)
-   - `NODE_ENV`: `production`
-5. Deploy!
+1. Install Fly CLI: `brew install flyctl`
+2. Log in: `flyctl auth login`
+3. Launch: `flyctl launch`
+4. Set secrets: `flyctl secrets set FIREBASE_PROJECT_ID="..." FIREBASE_DATABASE_URL="..." FIREBASE_SERVICE_ACCOUNT='...'`
+5. Deploy: `flyctl deploy`
 
-**Note**: Render's free tier has spin-down after 15 minutes of inactivity, resulting in 50+ second cold starts. Consider Fly.io for always-on performance.
+**Note**: While Fly.io offers better performance, it requires a credit card even for the free tier.
 
 ---
 

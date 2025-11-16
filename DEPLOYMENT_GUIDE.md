@@ -13,75 +13,68 @@ Complete guide to deploying textchan with different hosting options.
 
 ## Quick Start
 
-**Recommended: Fly.io for always-on, high-performance hosting**
+**Recommended: Render for free hosting (no credit card required)**
 
-```bash
-# 1. Install Fly CLI
-brew install flyctl  # or download from fly.io/docs
+1. Go to [render.com](https://render.com) and create a free account
+2. Click **New +** → **Web Service**
+3. Connect your GitHub repository
+4. Configure:
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+5. Set environment variables:
+   - `FIREBASE_PROJECT_ID`: Your Firebase project ID
+   - `FIREBASE_DATABASE_URL`: Your Firebase database URL
+   - `FIREBASE_SERVICE_ACCOUNT`: Service account JSON (single-line string)
+6. Click **Create Web Service**
 
-# 2. Authenticate
-flyctl auth login
+✅ **Done!** Your app is now live at `https://<app-name>.onrender.com`
 
-# 3. Launch app
-flyctl launch
-
-# 4. Set Firebase secrets
-flyctl secrets set FIREBASE_PROJECT_ID="your-project-id"
-flyctl secrets set FIREBASE_DATABASE_URL="https://your-project-id-default-rtdb.firebaseio.com"
-flyctl secrets set FIREBASE_SERVICE_ACCOUNT='{"type":"service_account",...}'
-
-# 5. Deploy
-flyctl deploy
-
-# 6. Open app
-flyctl open
-```
-
-✅ **Done!** Your app is now live at `https://<app-name>.fly.dev`
+**Note:** First request may take 10-30 seconds (cold start), then it's fast.
 
 ---
 
 ## Deployment Options
 
-### 🥇 Fly.io (Recommended)
+### 🥇 Render (Recommended)
 
-**Best for:** Production, viral traffic, always-on hosting
+**Best for:** Free hosting without credit card, easy setup
+
+**Pros:**
+- ✅ **No credit card required** - Truly free tier
+- ✅ Auto-deploy from GitHub
+- ✅ Easy setup (web UI)
+- ✅ Free SSL certificates
+- ✅ Custom domain support
+
+**Cons:**
+- ⚠️ Spin-down after 15 min (10-30 second cold starts)
+- ⚠️ Slower first request after inactivity
+
+**Setup time:** 5-10 minutes
+
+📘 **Full guide:** [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md)
+
+---
+
+### 🥈 Fly.io
+
+**Best for:** Always-on hosting, better performance (requires credit card)
 
 **Pros:**
 - ✅ Always running (no spin-down)
 - ✅ Instant response times (<2s)
 - ✅ Free tier (3x 256MB VMs)
 - ✅ Global distribution
-- ✅ 160GB bandwidth/month
 
 **Cons:**
+- ❌ **Requires credit card** (even for free tier)
 - ❌ Requires Fly CLI
 - ❌ Manual setup (not auto-deploy from Git)
 
 **Setup time:** 10-15 minutes
 
-📘 **Full guide:** [FLY_DEPLOYMENT.md](./FLY_DEPLOYMENT.md)  
-📋 **Migration checklist:** [FLY_MIGRATION_CHECKLIST.md](./FLY_MIGRATION_CHECKLIST.md)
-
----
-
-### 🥈 Render
-
-**Best for:** Quick setup, Git-based auto-deploy
-
-**Pros:**
-- ✅ Auto-deploy from GitHub
-- ✅ Easy setup (web UI)
-- ✅ Free tier
-
-**Cons:**
-- ❌ Spin-down after 15 min (50+ second cold starts)
-- ❌ Slower than Fly.io
-- ❌ Poor for viral traffic
-
-**Setup time:** 5-10 minutes
-
-📘 **Guide:** See [README.md - Deployment - Option 2: Render](./README.md#option-2-render)
+📘 **Full guide:** [FLY_DEPLOYMENT.md](./FLY_DEPLOYMENT.md) *(if available)*  
+📋 **Migration checklist:** [FLY_MIGRATION_CHECKLIST.md](./FLY_MIGRATION_CHECKLIST.md) *(if available)*
 
 ---
 
@@ -147,20 +140,21 @@ PORT=8080                    # Usually set automatically
 
 ### 🚀 Deployment Guides
 
-- **[FLY_DEPLOYMENT.md](./FLY_DEPLOYMENT.md)** - Complete Fly.io deployment guide
+- **[RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md)** - Complete Render deployment guide
+  - Prerequisites and Firebase setup
+  - Step-by-step deployment
+  - Environment variables configuration
+  - Custom domain setup
+  - Troubleshooting
+  - Monitoring and maintenance
+
+- **[FLY_DEPLOYMENT.md](./FLY_DEPLOYMENT.md)** - Fly.io deployment guide *(if available)*
   - Installation
   - Configuration
   - Secrets management
   - Custom domain setup
   - Troubleshooting
   - Monitoring
-
-- **[FLY_MIGRATION_CHECKLIST.md](./FLY_MIGRATION_CHECKLIST.md)** - Quick checklist for Fly.io
-  - Pre-migration steps
-  - Deployment commands
-  - Testing checklist
-  - Migration from Render
-  - Post-migration monitoring
 
 ### 🔥 Firebase Setup
 
@@ -194,27 +188,13 @@ PORT=8080                    # Usually set automatically
 
 ## Configuration Files
 
-### Fly.io Deployment
+### Render Deployment
 
-- **`fly.toml`** - Fly.io configuration
-  - App name and region
-  - Port configuration (8080)
-  - Health checks
-  - Auto-scaling settings (disabled for always-on)
-  - VM size (256MB free tier)
+Render deployment requires no special configuration files - it works directly with standard Node.js projects:
 
-- **`Dockerfile`** - Docker container configuration
-  - Node.js 18 Alpine base image
-  - Production dependencies only
-  - Health check command
-  - Optimized for Fly.io
-
-- **`.dockerignore`** - Docker build exclusions
-  - node_modules (installed during build)
-  - Documentation files
-  - Environment files (use Fly secrets)
-  - Git files
-  - IDE configs
+- **`package.json`** - Render auto-detects Node.js from this file
+- **`.env.example`** - Template for environment variables (set in Render dashboard)
+- **`.gitignore`** - Git exclusions (keep environment variables secure)
 
 ### General Configuration
 
@@ -238,43 +218,36 @@ PORT=8080                    # Usually set automatically
 
 ## Deployment Comparison
 
-| Feature | Fly.io | Render | Railway |
+| Feature | Render | Fly.io | Railway |
 |---------|--------|--------|---------|
-| **Spin-down** | ❌ No | ✅ Yes (15 min) | ✅ Yes |
-| **Cold start** | <2s | 50+ seconds | ~10 seconds |
-| **Free tier** | 3x 256MB VMs | 1 service | 500 hrs/month |
-| **Bandwidth** | 160GB/month | 100GB/month | 100GB/month |
+| **Credit card** | ❌ Not required | ⚠️ Required | ⚠️ Required |
+| **Spin-down** | ⚠️ Yes (15 min) | ❌ No | ⚠️ Yes |
+| **Cold start** | 10-30 seconds | <2s | ~10 seconds |
+| **Free tier** | 750 hrs/month | 3x 256MB VMs | 500 hrs/month |
+| **Bandwidth** | 100GB/month | 160GB/month | 100GB/month |
 | **Custom domain** | ✅ Free SSL | ✅ Free SSL | ✅ Free SSL |
-| **Auto-deploy** | ❌ Manual | ✅ Git push | ✅ Git push |
-| **CLI required** | ✅ Yes | ❌ No | ❌ No |
-| **Setup complexity** | Medium | Easy | Easy |
-| **Best for** | Production | Quick setup | Simple apps |
+| **Auto-deploy** | ✅ Git push | ❌ Manual | ✅ Git push |
+| **CLI required** | ❌ No | ✅ Yes | ❌ No |
+| **Setup complexity** | Easy | Medium | Easy |
+| **Best for** | Free hosting | Always-on | Simple apps |
 
 ---
 
 ## Quick Reference Commands
 
-### Fly.io
+### Render
 
-```bash
-# Deploy
-flyctl deploy
+**Deployment:**
+- Auto-deploys on Git push to connected branch
+- Manual deploy: Render Dashboard → Manual Deploy → Deploy latest commit
 
-# View logs
-flyctl logs
+**Monitoring:**
+- View logs: Render Dashboard → Logs tab
+- Check status: Render Dashboard → Events tab
+- View environment variables: Settings → Environment
 
-# Check status
-flyctl status
-
-# Open app
-flyctl open
-
-# Set secret
-flyctl secrets set KEY=value
-
-# SSH into VM
-flyctl ssh console
-```
+**URL:**
+- Access app: `https://<service-name>.onrender.com`
 
 ### Local Development
 
@@ -317,10 +290,10 @@ open https://console.firebase.google.com
 
 ### Common Issues
 
-**Issue:** App not starting on Fly.io
-- **Check:** Logs with `flyctl logs`
-- **Verify:** Secrets set with `flyctl secrets list`
-- **Solution:** Ensure Firebase credentials are correct
+**Issue:** App not starting on Render
+- **Check:** Render Dashboard → Logs for error messages
+- **Verify:** Environment variables are set correctly
+- **Solution:** Ensure Firebase credentials are correct and valid JSON
 
 **Issue:** Weekend posting not working
 - **Check:** Current day and time (uses UTC)
@@ -329,17 +302,17 @@ open https://console.firebase.google.com
 
 **Issue:** Firebase connection errors
 - **Check:** Firebase Console - Database URL and security rules
-- **Verify:** Service account JSON is valid
-- **Solution:** Regenerate service account key
+- **Verify:** Service account JSON is valid single-line string
+- **Solution:** Regenerate service account key and update environment variable
 
-**Issue:** Slow response times
-- **Check:** Fly.io `auto_stop_machines = false` in fly.toml
-- **Verify:** `min_machines_running = 1`
-- **Solution:** Redeploy with correct fly.toml settings
+**Issue:** Slow first load (cold start)
+- **Expected:** Free tier spins down after 15 minutes
+- **Impact:** First request takes 10-30 seconds, then fast
+- **Solution:** Upgrade to Starter plan ($7/month) for no spin-down, or accept delay
 
 ### Getting Help
 
-- **Fly.io support:** https://community.fly.io
+- **Render support:** https://community.render.com
 - **Firebase support:** https://firebase.google.com/support
 - **Project issues:** Open an issue on GitHub
 
@@ -347,9 +320,19 @@ open https://console.firebase.google.com
 
 ## Migration Paths
 
-### From Render to Fly.io
+### From Fly.io to Render (No Credit Card Required)
 
-1. ✅ Deploy to Fly.io (follow FLY_DEPLOYMENT.md)
+1. ✅ Deploy to Render (follow RENDER_DEPLOYMENT.md)
+2. ✅ Test thoroughly on Render URL
+3. ✅ Update DNS to point to Render (if using custom domain)
+4. ✅ Monitor for 24-48 hours
+5. ✅ Delete Fly.io app (optional, to avoid confusion)
+
+**No data migration needed** - Firebase is cloud-hosted
+
+### From Render to Fly.io (Better Performance, Requires CC)
+
+1. ✅ Deploy to Fly.io (follow FLY_DEPLOYMENT.md if available)
 2. ✅ Test thoroughly on Fly.io URL
 3. ✅ Update DNS to point to Fly.io
 4. ✅ Monitor for 24-48 hours
