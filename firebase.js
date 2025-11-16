@@ -11,7 +11,7 @@ function initializeFirebase() {
     try {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const databaseURL = process.env.FIREBASE_DATABASE_URL;
-
+      
       if (!projectId || !databaseURL) {
         throw new Error('Firebase environment variables are not set. Required: FIREBASE_PROJECT_ID, FIREBASE_DATABASE_URL');
       }
@@ -27,24 +27,16 @@ function initializeFirebase() {
       });
 
       db = admin.database();
-
-      db.ref('.sv').once('value')
-        .then(() => {
-          console.log('Firebase initialized and database connection verified');
-          console.log(`Database URL: ${databaseURL}`);
-          resolve(db);
-        })
-        .catch(error => {
-          console.error('Firebase database connection check failed:', error);
-          reject(error);
-        });
+      
+      console.log('Firebase initialized successfully');
+      console.log(`Database URL: ${databaseURL}`);
+      resolve(db);
     } catch (error) {
       console.error('Failed to initialize Firebase:', error);
       reject(error);
     }
   });
 }
-
 async function checkStorageLimit() {
   try {
     const snapshot = await db.ref('/').get();
