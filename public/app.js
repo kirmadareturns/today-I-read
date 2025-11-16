@@ -408,7 +408,7 @@ class TextchanApp {
       await this.fetchThreads();
     } catch (error) {
       console.error('Failed to create thread:', error);
-      errorMessage.textContent = 'Network error. Please try again.';
+      errorMessage.textContent = 'A network error occurred. The server might be down or your connection is unstable. Please try again later.';
       errorMessage.classList.add('visible');
       button.disabled = false;
       button.classList.remove('loading');
@@ -481,7 +481,7 @@ class TextchanApp {
       await this.fetchThreads();
     } catch (error) {
       console.error('Failed to create reply:', error);
-      errorMessage.textContent = 'Network error. Please try again.';
+      errorMessage.textContent = 'A network error occurred. The server might be down or your connection is unstable. Please try again later.';
       errorMessage.classList.add('visible');
       button.disabled = false;
       button.classList.remove('loading');

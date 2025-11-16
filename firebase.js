@@ -28,9 +28,16 @@ function initializeFirebase() {
 
       db = admin.database();
 
-      console.log('Firebase initialized successfully');
-      console.log(`Database URL: ${databaseURL}`);
-      resolve(db);
+      db.ref('.sv').once('value')
+        .then(() => {
+          console.log('Firebase initialized and database connection verified');
+          console.log(`Database URL: ${databaseURL}`);
+          resolve(db);
+        })
+        .catch(error => {
+          console.error('Firebase database connection check failed:', error);
+          reject(error);
+        });
     } catch (error) {
       console.error('Failed to initialize Firebase:', error);
       reject(error);
