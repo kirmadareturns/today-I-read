@@ -19,7 +19,7 @@ Online forums and imageboards often suffer from constant activity and low-qualit
 - 📅 **Weekend-only posting** - Create threads and replies only on Saturdays and Sundays (UTC)
 - 🧵 **Simple threading** - Start text threads and reply to existing discussions
 - 👤 **Anonymous by default** - No user accounts, profiles, or authentication
-- 💾 **Persistent storage** - SQLite database maintains all threads and replies
+- 💾 **Persistent storage** - Firebase Realtime Database maintains all threads and replies permanently
 - 🚀 **Lightweight** - Vanilla JavaScript frontend, no heavy frameworks
 - 🌐 **RESTful API** - Clean JSON API for all operations
 
@@ -28,18 +28,19 @@ Online forums and imageboards often suffer from constant activity and low-qualit
 ### Backend
 - **Node.js** (v18+) - JavaScript runtime
 - **Express** (v4) - Web application framework
-- **better-sqlite3** (v9) - Synchronous SQLite3 bindings
+- **Firebase Admin SDK** (v12) - Firebase backend integration
 - **CORS** - Cross-origin resource sharing middleware
 
 ### Frontend
 - **Vanilla JavaScript** - No frameworks, pure ES6+
 - **HTML5** - Semantic markup
-- **CSS3** - Inline styling in index.html
+- **CSS3** - Custom styling
 
 ### Database
-- **SQLite** - Single-file relational database
-  - `threads` table - Stores thread content and metadata
-  - `replies` table - Stores replies with foreign key to threads
+- **Firebase Realtime Database** - NoSQL cloud database (free tier)
+  - `/threads/{threadId}` - Thread content and metadata
+  - `/threads/{threadId}/replies/{replyId}` - Nested replies structure
+  - **Storage limit**: 1GB (enforced at 90% to prevent charges)
 
 ## Prerequisites
 
@@ -47,6 +48,7 @@ Before running Textchan, ensure you have:
 
 - **Node.js** v18.0.0 or higher ([download here](https://nodejs.org/))
 - **npm** (comes with Node.js)
+- **Firebase project** with Realtime Database enabled (see [Firebase Setup Guide](./FIREBASE_SETUP.md))
 - A command-line terminal
 
 Check your versions:
@@ -72,8 +74,28 @@ npm install
 
 This will install:
 - `express` - Web server framework
-- `better-sqlite3` - SQLite database driver
+- `firebase-admin` - Firebase backend SDK
 - `cors` - CORS middleware for API requests
+
+3. Set up Firebase:
+
+Follow the [Firebase Setup Guide](./FIREBASE_SETUP.md) to:
+- Create a Firebase project
+- Enable Realtime Database
+- Get credentials
+- Configure environment variables
+
+4. Create a `.env` file:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your Firebase credentials:
+```
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_DATABASE_URL=https://your-project-id-default-rtdb.firebaseio.com
+```
 
 ### Running the Server
 
@@ -91,32 +113,40 @@ The server will start on `http://localhost:3000` by default.
 
 You should see output like:
 ```
+Firebase initialized successfully
+Database URL: https://your-project-id-default-rtdb.firebaseio.com
 Textchan server running on http://localhost:3000
 Weekend posting: ENABLED
 ```
 
-### Database Initialization
+### Firebase Connection
 
-The SQLite database is automatically created on first run:
+Firebase Realtime Database is automatically connected on server start:
 
-- **Location**: `textchan.db` in the project root directory
-- **Schema**: Initialized automatically via `CREATE TABLE IF NOT EXISTS` statements in `server.js`
-- **Tables**:
-  - `threads(id, content, created_at)`
-  - `replies(id, thread_id, content, created_at)`
+- **Location**: Cloud-hosted at your Firebase project URL
+- **Data structure**: Hierarchical JSON tree
+  - `/threads/{threadId}` - Thread content and metadata
+  - `/threads/{threadId}/replies/{replyId}` - Nested replies
+- **Storage limit**: 1GB (free tier), enforced at 90% capacity
 
-No manual database setup is required. The database file will be created when you first run `npm start`.
+No manual database setup is required after configuring environment variables.
 
 ### Project Structure
 
 ```
 textchan/
-├── server.js          # Express server with API routes and weekend logic
-├── index.html         # Frontend HTML page
-├── package.json       # Node dependencies and scripts
-├── textchan.db        # SQLite database (created on first run)
-├── .gitignore         # Excludes node_modules and *.db files
-└── README.md          # This file
+├── server.js              # Express server with API routes and weekend logic
+├── firebase.js            # Firebase initialization and storage operations
+├── public/
+│   ├── index.html         # Frontend HTML page
+│   ├── app.js             # Vanilla JS frontend logic
+│   └── styles.css         # CSS styling
+├── package.json           # Node dependencies and scripts
+├── .env                   # Environment variables (not in git)
+├── .env.example           # Environment variables template
+├── .gitignore             # Excludes node_modules, .env, credentials
+├── FIREBASE_SETUP.md      # Firebase setup guide
+└── README.md              # This file
 ```
 
 ## API Reference

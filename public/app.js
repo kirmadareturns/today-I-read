@@ -79,7 +79,17 @@ class TextchanApp {
     const threadDisabledMessage = document.getElementById('thread-disabled-message');
     const threadError = document.getElementById('thread-error');
 
-    if (this.status.postingEnabled) {
+    const storageLimit = this.status.storage && this.status.storage.limitReached;
+
+    if (storageLimit) {
+      banner.className = 'status-banner disabled';
+      statusMessage.textContent = '⚠ Storage limit reached';
+      threadContent.disabled = true;
+      threadSubmit.disabled = true;
+      threadDisabledMessage.textContent = 'The site is at capacity. Check back later!';
+      threadDisabledMessage.classList.add('visible');
+      threadError.classList.remove('visible');
+    } else if (this.status.postingEnabled) {
       banner.className = 'status-banner enabled';
       statusMessage.textContent = '✓ Posting is currently enabled';
       threadContent.disabled = false;
@@ -107,7 +117,17 @@ class TextchanApp {
       const disabledMessage = form.querySelector('.disabled-message');
       const errorMessage = form.querySelector('.error-message');
 
-      if (this.status && this.status.postingEnabled) {
+      const storageLimit = this.status && this.status.storage && this.status.storage.limitReached;
+
+      if (storageLimit) {
+        textarea.disabled = true;
+        button.disabled = true;
+        if (disabledMessage) {
+          disabledMessage.textContent = 'The site is at capacity. Check back later!';
+          disabledMessage.classList.add('visible');
+        }
+        if (errorMessage) errorMessage.classList.remove('visible');
+      } else if (this.status && this.status.postingEnabled) {
         textarea.disabled = false;
         button.disabled = false;
         if (disabledMessage) disabledMessage.classList.remove('visible');
@@ -364,6 +384,9 @@ class TextchanApp {
       if (!response.ok) {
         if (response.status === 403) {
           errorMessage.textContent = 'Posting is only allowed on weekends. Please wait until the weekend to post.';
+        } else if (response.status === 507) {
+          errorMessage.textContent = 'The site is at capacity. Check back later!';
+          await this.fetchStatus();
         } else {
           errorMessage.textContent = data.error || 'Failed to create thread';
         }
@@ -432,6 +455,9 @@ class TextchanApp {
       if (!response.ok) {
         if (response.status === 403) {
           errorMessage.textContent = 'Posting is only allowed on weekends. Please wait until the weekend to post.';
+        } else if (response.status === 507) {
+          errorMessage.textContent = 'The site is at capacity. Check back later!';
+          await this.fetchStatus();
         } else {
           errorMessage.textContent = data.error || 'Failed to create reply';
         }

@@ -1,8 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
-const { promisify } = require('util');
+const {
+  initializeFirebase,
+  checkStorageLimit,
+  createThread,
+  getAllThreads,
+  getThreadById,
+  getRepliesByThreadId,
+  createReply,
+  cleanup
+} = require('./firebase');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,41 +19,6 @@ const ALLOW_WEEKDAY_POSTING = process.env.ALLOW_WEEKDAY_POSTING === 'true';
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
-const db = new sqlite3.Database(path.join(__dirname, 'textchan.db'));
-
-const dbRun = promisify(db.run.bind(db));
-const dbGet = promisify(db.get.bind(db));
-const dbAll = promisify(db.all.bind(db));
-
-async function initDatabase() {
-  try {
-    await dbRun(`
-      CREATE TABLE IF NOT EXISTS threads (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        body TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      )
-    `);
-
-    await dbRun(`
-      CREATE TABLE IF NOT EXISTS replies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        thread_id INTEGER NOT NULL,
-        body TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (thread_id) REFERENCES threads(id)
-      )
-    `);
-
-    console.log('Database initialized successfully');
-  } catch (error) {
-    console.error('Error initializing database:', error);
-    process.exit(1);
-  }
-}
 
 function isWeekend() {
   if (ALLOW_WEEKDAY_POSTING) {
@@ -86,45 +59,33 @@ function getNextChangeTimestamp() {
   return nextChange.toISOString();
 }
 
-app.get('/api/status', (req, res) => {
-  res.json({
-    postingEnabled: isWeekend(),
-    currentDay: getCurrentDay(),
-    nextChangeTimestamp: getNextChangeTimestamp()
-  });
+app.get('/api/status', async (req, res) => {
+  try {
+    const storageStatus = await checkStorageLimit();
+    
+    res.json({
+      postingEnabled: isWeekend(),
+      currentDay: getCurrentDay(),
+      nextChangeTimestamp: getNextChangeTimestamp(),
+      storage: {
+        limitReached: storageStatus.limitReached,
+        usagePercent: storageStatus.usagePercent
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching status:', error);
+    res.json({
+      postingEnabled: isWeekend(),
+      currentDay: getCurrentDay(),
+      nextChangeTimestamp: getNextChangeTimestamp()
+    });
+  }
 });
 
 app.get('/api/threads', async (req, res) => {
   try {
-    const threads = await dbAll(`
-      SELECT id, body, user_id, created_at
-      FROM threads
-      ORDER BY created_at DESC
-    `);
-    
-    const threadsWithReplies = await Promise.all(threads.map(async (thread) => {
-      const replies = await dbAll(`
-        SELECT id, body, user_id, created_at
-        FROM replies
-        WHERE thread_id = ?
-        ORDER BY created_at ASC
-      `, thread.id);
-      
-      return {
-        id: thread.id,
-        body: thread.body,
-        userId: thread.user_id,
-        createdAt: thread.created_at,
-        replies: replies.map(r => ({
-          id: r.id,
-          body: r.body,
-          userId: r.user_id,
-          createdAt: r.created_at
-        }))
-      };
-    }));
-    
-    res.json(threadsWithReplies);
+    const threads = await getAllThreads();
+    res.json(threads);
   } catch (error) {
     console.error('Error fetching threads:', error);
     res.status(500).json({ error: 'Failed to fetch threads' });
@@ -156,64 +117,42 @@ app.post('/api/threads', async (req, res) => {
 
   try {
     const createdAt = new Date().toISOString();
-    const result = await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO threads (body, user_id, created_at) VALUES (?, ?, ?)',
-        [trimmedBody, userId.trim(), createdAt],
-        function(err) {
-          if (err) reject(err);
-          else resolve({ lastID: this.lastID });
-        }
-      );
-    });
-
-    res.status(201).json({
-      id: result.lastID,
-      body: trimmedBody,
-      userId: userId.trim(),
-      createdAt: createdAt,
-      replies: []
-    });
+    const thread = await createThread(trimmedBody, userId.trim(), createdAt);
+    
+    res.status(201).json(thread);
   } catch (error) {
     console.error('Error creating thread:', error);
+    
+    if (error.message === 'STORAGE_LIMIT_REACHED') {
+      return res.status(507).json({
+        error: 'Storage limit reached. Posts temporarily disabled.',
+        storageLimit: true
+      });
+    }
+    
     res.status(500).json({ error: 'Failed to create thread' });
   }
 });
 
 app.get('/api/threads/:threadId/replies', async (req, res) => {
-  const threadId = parseInt(req.params.threadId);
+  const { threadId } = req.params;
 
-  if (isNaN(threadId)) {
+  if (!threadId) {
     return res.status(400).json({ error: 'Invalid thread ID' });
   }
 
   try {
-    const thread = await dbGet('SELECT * FROM threads WHERE id = ?', threadId);
+    const thread = await getThreadById(threadId);
     
     if (!thread) {
       return res.status(404).json({ error: 'Thread not found' });
     }
 
-    const replies = await dbAll(`
-      SELECT id, body, user_id, created_at
-      FROM replies
-      WHERE thread_id = ?
-      ORDER BY created_at ASC
-    `, threadId);
+    const replies = await getRepliesByThreadId(threadId);
 
     res.json({
-      thread: {
-        id: thread.id,
-        body: thread.body,
-        userId: thread.user_id,
-        createdAt: thread.created_at
-      },
-      replies: replies.map(r => ({
-        id: r.id,
-        body: r.body,
-        userId: r.user_id,
-        createdAt: r.created_at
-      }))
+      thread,
+      replies
     });
   } catch (error) {
     console.error('Error fetching thread:', error);
@@ -228,10 +167,10 @@ app.post('/api/threads/:threadId/replies', async (req, res) => {
     });
   }
 
-  const threadId = parseInt(req.params.threadId);
+  const { threadId } = req.params;
   const { body, userId } = req.body;
 
-  if (isNaN(threadId)) {
+  if (!threadId) {
     return res.status(400).json({ error: 'Invalid thread ID' });
   }
 
@@ -250,33 +189,24 @@ app.post('/api/threads/:threadId/replies', async (req, res) => {
   }
 
   try {
-    const thread = await dbGet('SELECT * FROM threads WHERE id = ?', threadId);
-    
-    if (!thread) {
-      return res.status(404).json({ error: 'Thread not found' });
-    }
-
     const createdAt = new Date().toISOString();
-    const result = await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO replies (thread_id, body, user_id, created_at) VALUES (?, ?, ?, ?)',
-        [threadId, trimmedBody, userId.trim(), createdAt],
-        function(err) {
-          if (err) reject(err);
-          else resolve({ lastID: this.lastID });
-        }
-      );
-    });
-
-    res.status(201).json({
-      id: result.lastID,
-      threadId: threadId,
-      body: trimmedBody,
-      userId: userId.trim(),
-      createdAt: createdAt
-    });
+    const reply = await createReply(threadId, trimmedBody, userId.trim(), createdAt);
+    
+    res.status(201).json(reply);
   } catch (error) {
     console.error('Error creating reply:', error);
+    
+    if (error.message === 'STORAGE_LIMIT_REACHED') {
+      return res.status(507).json({
+        error: 'Storage limit reached. Posts temporarily disabled.',
+        storageLimit: true
+      });
+    }
+    
+    if (error.message === 'THREAD_NOT_FOUND') {
+      return res.status(404).json({ error: 'Thread not found' });
+    }
+    
     res.status(500).json({ error: 'Failed to create reply' });
   }
 });
@@ -289,31 +219,47 @@ app.use((err, req, res, next) => {
 });
 
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 async function startServer() {
-  await initDatabase();
-  
-  app.listen(PORT, () => {
-    console.log(`Textchan server running on http://localhost:${PORT}`);
-    console.log(`Weekend posting: ${isWeekend() ? 'ENABLED' : 'DISABLED'}`);
-    if (ALLOW_WEEKDAY_POSTING) {
-      console.log('⚠️  Weekday posting override is ACTIVE');
-    }
-  });
+  try {
+    await initializeFirebase();
+    
+    app.listen(PORT, () => {
+      console.log(`Textchan server running on http://localhost:${PORT}`);
+      console.log(`Weekend posting: ${isWeekend() ? 'ENABLED' : 'DISABLED'}`);
+      if (ALLOW_WEEKDAY_POSTING) {
+        console.log('⚠️  Weekday posting override is ACTIVE');
+      }
+      console.log('✓ Using Firebase Realtime Database for storage');
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
 }
 
-startServer().catch(error => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
+startServer();
+
+process.on('SIGINT', async () => {
+  console.log('Shutting down gracefully...');
+  try {
+    await cleanup();
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    process.exit(1);
+  }
 });
 
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) {
-      console.error('Error closing database:', err);
-    }
+process.on('SIGTERM', async () => {
+  console.log('Shutting down gracefully...');
+  try {
+    await cleanup();
     process.exit(0);
-  });
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    process.exit(1);
+  }
 });
