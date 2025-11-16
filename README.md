@@ -503,13 +503,43 @@ If you want to change the timezone logic, you'll need to modify the `isWeekend()
 
 ## Deployment
 
-Textchan can be deployed to various platforms. The key requirement is persistent storage for the SQLite database file.
+Textchan can be deployed to various platforms. Since it uses Firebase Realtime Database for cloud storage, no persistent volumes or database setup is required on the hosting platform.
 
 ### Platform Options
 
-#### Option 1: Render (Recommended)
+#### Option 1: Fly.io (Recommended)
 
-[Render](https://render.com) supports persistent disks for SQLite databases.
+[Fly.io](https://fly.io) provides always-on hosting with no spin-down delays, perfect for handling viral weekend traffic.
+
+**Why Fly.io:**
+- **No spin-down**: Always running, instant response times (no 50+ second delays)
+- **Free tier**: 3 shared-cpu-1x 256MB VMs included
+- **Better performance**: Faster than other free tiers
+- **Global distribution**: Deploy close to your users
+- **160GB outbound data/month** on free tier
+
+**Quick Start:**
+
+1. Install Fly CLI: `brew install flyctl` (or see [docs](https://fly.io/docs/hands-on/install-flyctl/))
+2. Log in: `flyctl auth login`
+3. Launch your app: `flyctl launch`
+4. Set Firebase secrets:
+   ```bash
+   flyctl secrets set FIREBASE_PROJECT_ID="your-project-id"
+   flyctl secrets set FIREBASE_DATABASE_URL="https://your-project-id-default-rtdb.firebaseio.com"
+   flyctl secrets set FIREBASE_SERVICE_ACCOUNT='{"type":"service_account",...}'
+   ```
+5. Deploy: `flyctl deploy`
+
+**📘 Full deployment guide**: See [FLY_DEPLOYMENT.md](./FLY_DEPLOYMENT.md) for detailed step-by-step instructions, custom domain setup, troubleshooting, and more.
+
+**No volumes needed**: Firebase handles all data storage in the cloud, so no persistent disks required.
+
+---
+
+#### Option 2: Render
+
+[Render](https://render.com) supports Node.js web services with easy deployment.
 
 **Steps:**
 
@@ -518,64 +548,33 @@ Textchan can be deployed to various platforms. The key requirement is persistent
 3. Configure build settings:
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
-4. Add a persistent disk:
-   - **Mount Path**: `/home/engine/project`
-   - **Size**: 1GB (sufficient for small-medium communities)
-5. Set environment variables if needed:
-   - `NODE_ENV=production`
-6. Deploy!
+4. Set environment variables:
+   - `FIREBASE_PROJECT_ID`: Your Firebase project ID
+   - `FIREBASE_DATABASE_URL`: Your Firebase database URL
+   - `FIREBASE_SERVICE_ACCOUNT`: Service account JSON (stringified)
+   - `NODE_ENV`: `production`
+5. Deploy!
 
-**Persistent Storage**: Render's persistent disks ensure `textchan.db` survives across deploys and restarts.
-
----
-
-#### Option 2: Fly.io
-
-[Fly.io](https://fly.io) provides volume storage for persistent data.
-
-**Steps:**
-
-1. Install the Fly CLI: `brew install flyctl` (or see [docs](https://fly.io/docs/hands-on/install-flyctl/))
-2. Log in: `flyctl auth login`
-3. Launch your app: `flyctl launch`
-4. Create a volume:
-   ```bash
-   flyctl volumes create textchan_data --size 1
-   ```
-5. Update `fly.toml` to mount the volume:
-   ```toml
-   [[mounts]]
-   source = "textchan_data"
-   destination = "/data"
-   ```
-6. Update `server.js` to use the volume path:
-   ```javascript
-   const dbPath = process.env.NODE_ENV === 'production' 
-     ? '/data/textchan.db' 
-     : path.join(__dirname, 'textchan.db');
-   const db = new Database(dbPath);
-   ```
-7. Deploy: `flyctl deploy`
-
-**Persistent Storage**: Fly volumes persist across deployments.
+**Note**: Render's free tier has spin-down after 15 minutes of inactivity, resulting in 50+ second cold starts. Consider Fly.io for always-on performance.
 
 ---
 
 #### Option 3: Railway
 
-[Railway](https://railway.app) automatically handles Node.js apps and provides persistent volumes.
+[Railway](https://railway.app) automatically handles Node.js apps with minimal configuration.
 
 **Steps:**
 
 1. Create a new project on Railway
 2. Connect your GitHub repository
 3. Railway will auto-detect Node.js and run `npm install` and `npm start`
-4. Add a volume in the Settings:
-   - **Mount Path**: `/app/data`
-5. Update database path in `server.js` (same as Fly.io example above)
-6. Deploy!
+4. Set environment variables in Settings:
+   - `FIREBASE_PROJECT_ID`
+   - `FIREBASE_DATABASE_URL`
+   - `FIREBASE_SERVICE_ACCOUNT`
+5. Deploy!
 
-**Persistent Storage**: Railway volumes persist data across builds.
+**No volumes needed**: All data is stored in Firebase Realtime Database.
 
 ---
 
@@ -621,27 +620,42 @@ ALLOW_WEEKDAY_POSTING=false        # Weekend gating (should be false in prod)
 
 ### Storage Model
 
-Textchan uses a **single SQLite file** (`textchan.db`) to store all data:
+Textchan uses **Firebase Realtime Database** for cloud-hosted NoSQL storage:
 
-- **Threads**: ID, content, timestamp
-- **Replies**: ID, thread_id (foreign key), content, timestamp
+- **Threads**: `/threads/{threadId}` - Thread content, userId, and metadata
+- **Replies**: `/threads/{threadId}/replies/{replyId}` - Nested replies structure
 
-**Schema:**
-```sql
-CREATE TABLE threads (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  content TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
-
-CREATE TABLE replies (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  thread_id INTEGER NOT NULL,
-  content TEXT NOT NULL,
-  created_at INTEGER NOT NULL,
-  FOREIGN KEY (thread_id) REFERENCES threads(id)
-);
+**Data Structure:**
+```json
+{
+  "threads": {
+    "thread-id-1": {
+      "body": "What are your weekend plans?",
+      "userId": "anon-abc123",
+      "createdAt": "2024-01-13T15:30:00.000Z",
+      "replies": {
+        "reply-id-1": {
+          "body": "Going hiking!",
+          "userId": "anon-xyz789",
+          "createdAt": "2024-01-13T16:00:00.000Z"
+        }
+      }
+    }
+  }
+}
 ```
+
+**Storage Limits:**
+- **Free tier**: 1GB total storage
+- **Enforcement**: Posts rejected at 90% capacity (507 Insufficient Storage error)
+- **No charges**: Never exceeds free tier limit
+
+**Benefits:**
+- **Cloud-hosted**: No server-side storage management
+- **Automatic backups**: Firebase handles redundancy
+- **Real-time sync**: Updates propagate instantly
+- **Scalable**: Handles traffic spikes gracefully
+- **No data loss**: Persistent across deployments
 
 ### Limitations
 
@@ -653,8 +667,8 @@ CREATE TABLE replies (
 4. **No file uploads**: Text-only posts
 5. **No pagination**: All threads/replies loaded at once (can be slow with many posts)
 6. **No search**: Can't search through old threads
-7. **SQLite single-file**: Not suitable for extremely high-traffic scenarios
-8. **No backups**: Data loss if database file is corrupted or deleted
+7. **1GB storage limit**: Free tier caps at 1GB (enforced at 90%)
+8. **Firebase dependency**: Requires internet connection to Firebase servers
 
 ### Production Hardening Recommendations
 
@@ -695,58 +709,56 @@ const cleanContent = filter.clean(content);
 
 #### 3. Add Pagination
 
-Limit threads/replies returned per request:
+Limit threads/replies returned per request using Firebase query methods:
 ```javascript
-app.get('/api/threads', (req, res) => {
+app.get('/api/threads', async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = 20;
-  const offset = (page - 1) * limit;
   
-  const threads = db.prepare(`
-    SELECT ... FROM threads
-    ORDER BY created_at DESC
-    LIMIT ? OFFSET ?
-  `).all(limit, offset);
+  // Use Firebase orderBy and limitToLast for pagination
+  const threadsRef = admin.database().ref('threads');
+  const snapshot = await threadsRef
+    .orderByChild('createdAt')
+    .limitToLast(limit)
+    .once('value');
   
-  // ...
+  // Process snapshot...
 });
 ```
 
 #### 4. Implement Moderation
 
-Add admin endpoints with password/token authentication:
+Add admin endpoints with password/token authentication to delete threads/replies:
 ```javascript
-app.delete('/api/admin/threads/:id', authenticateAdmin, (req, res) => {
-  db.prepare('DELETE FROM threads WHERE id = ?').run(req.params.id);
+app.delete('/api/admin/threads/:id', authenticateAdmin, async (req, res) => {
+  await admin.database().ref(`threads/${req.params.id}`).remove();
   res.json({ success: true });
 });
 ```
 
-#### 5. Set Up Database Backups
+#### 5. Monitor Firebase Usage
 
-Automated daily backups:
-```bash
-# Cron job example
-0 2 * * * cp /app/textchan.db /app/backups/textchan-$(date +\%Y\%m\%d).db
-```
+Keep track of Firebase storage and bandwidth:
+- Check Firebase Console: Project Settings > Usage and Billing
+- Set up Firebase usage alerts for approaching 1GB limit
+- Monitor bandwidth usage (10GB/month download limit on free tier)
 
-Or use a service like [Litestream](https://litestream.io/) for continuous SQLite replication to S3.
+#### 6. Add Error Tracking
 
-#### 6. Add Monitoring
-
-Use services like:
+Use monitoring services to track errors and performance:
 - [Sentry](https://sentry.io) for error tracking
 - [LogRocket](https://logrocket.com) for session replay
-- [Prometheus + Grafana](https://prometheus.io) for metrics
+- Firebase Analytics for user metrics
 
-#### 7. Consider PostgreSQL
+#### 7. Consider Firebase Blaze Plan
 
-For high-traffic scenarios, migrate from SQLite to PostgreSQL:
-```bash
-npm install pg
-```
-
-Most hosting providers offer managed PostgreSQL (Render, Railway, Heroku, etc.).
+For high-traffic scenarios or storage needs beyond 1GB:
+- **Firebase Blaze (pay-as-you-go)**:
+  - Includes free tier limits
+  - Only pay for usage beyond free tier
+  - 1GB storage: ~$5/month
+  - 10GB bandwidth: included free
+- Monitor costs carefully to avoid unexpected charges
 
 ---
 
