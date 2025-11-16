@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>textchan - weekend anonymous imageboard</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>textchan</h1>
+      <p class="tagline">weekend-only anonymous imageboard</p>
+    </header>
+
+    <section class="status-section">
+      <div id="status-banner" class="status-banner">
+        <div class="status-message">Loading status...</div>
+        <div id="countdown" class="countdown"></div>
+      </div>
+    </section>
+
+    <section class="user-id-section">
+      <div class="user-id-display">
+        Your anonymous ID: <span id="user-id" class="user-id">generating...</span>
+      </div>
+    </section>
+
+    <section class="new-thread-section">
+      <h2>Post New Thread</h2>
+      <form id="new-thread-form" class="post-form">
+        <textarea 
+          id="thread-content" 
+          placeholder="Share your thoughts... (max 2000 characters)"
+          maxlength="2000"
+          rows="4"
+        ></textarea>
+        <div class="form-footer">
+          <div class="char-counter">
+            <span id="thread-char-count">0</span> / 2000
+          </div>
+          <button type="submit" class="btn btn-primary">Post Thread</button>
+        </div>
+        <div id="thread-error" class="error-message"></div>
+        <div id="thread-disabled-message" class="disabled-message"></div>
+      </form>
+    </section>
+
+    <section class="threads-section">
+      <h2>Threads</h2>
+      <div id="threads-container" class="threads-container">
+        <div class="loading">Loading threads...</div>
+      </div>
+      <div id="threads-empty" class="empty-state" style="display: none;">
+        No threads yet. Be the first to post!
+      </div>
+    </section>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
