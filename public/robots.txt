@@ -1,0 +1,1 @@
+User-agent: * Allow: / Allow: /api/threads Allow: /api/status Disallow: /api/threads/stream Sitemap: https://textchan.space/sitemap.xml
