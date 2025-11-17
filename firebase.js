@@ -188,7 +188,84 @@ function cleanup() {
     return firebaseApp.delete();
   }
 }
+// Real-time listeners
+let threadListeners = [];
+let replyListeners = {};
 
+function setupThreadListener(callback) {
+  const query = db.ref('threads').orderByChild('createdAt').limitToLast(50);
+  
+  query.on('child_added', snapshot => {
+    const thread = {
+      id: snapshot.key,
+      body: snapshot.val().body,
+      userId: snapshot.val().userId,
+      createdAt: snapshot.val().createdAt,
+      replies: []
+    };
+    callback('added', thread);
+  });
+  
+  query.on('child_modified', snapshot => {
+    const thread = {
+      id: snapshot.key,
+      body: snapshot.val().body,
+      userId: snapshot.val().userId,
+      createdAt: snapshot.val().createdAt,
+      replies: []
+    };
+    callback('modified', thread);
+  });
+  
+  query.on('child_removed', snapshot => {
+    callback('removed', { id: snapshot.key });
+  });
+  
+  threadListeners.push(query);
+  
+  return () => {
+    query.off();
+    threadListeners = threadListeners.filter(l => l !== query);
+  };
+}
+
+function setupReplyListener(threadId, callback) {
+  const query = db.ref(`threads/${threadId}/replies`).orderByChild('createdAt');
+  
+  query.on('child_added', snapshot => {
+    const reply = {
+      id: snapshot.key,
+      body: snapshot.val().body,
+      userId: snapshot.val().userId,
+      createdAt: snapshot.val().createdAt
+    };
+    callback('added', reply);
+  });
+  
+  query.on('child_modified', snapshot => {
+    const reply = {
+      id: snapshot.key,
+      body: snapshot.val().body,
+      userId: snapshot.val().userId,
+      createdAt: snapshot.val().createdAt
+    };
+    callback('modified', reply);
+  });
+  
+  replyListeners[threadId] = query;
+  
+  return () => {
+    query.off();
+    delete replyListeners[threadId];
+  };
+}
+
+function cleanupAllListeners() {
+  threadListeners.forEach(listener => listener.off());
+  Object.values(replyListeners).forEach(listener => listener.off());
+  threadListeners = [];
+  replyListeners = {};
+}
 module.exports = {
   initializeFirebase,
   checkStorageLimit,
@@ -198,5 +275,8 @@ module.exports = {
   getRepliesByThreadId,
   createReply,
   getDatabase,
-  cleanup
+  cleanup,
+  setupThreadListener,
+  setupReplyListener,
+  cleanupAllListeners
 };
