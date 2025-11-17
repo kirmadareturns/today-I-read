@@ -28,15 +28,15 @@ class TextchanApp {
     return id;
   }
 
-  init() {
-    this.displayUserId();
-    this.setupEventListeners();
-    this.fetchStatus();
-    this.fetchThreads();
-    
-    this.statusInterval = setInterval(() => this.fetchStatus(), 30000);
-    this.threadsInterval = setInterval(() => this.fetchThreads(), 15000);
-  }
+init() {
+  this.displayUserId();
+  this.setupEventListeners();
+  this.fetchStatus();
+  this.fetchThreads();
+  this.setupRealtimeListeners();
+  
+  this.statusInterval = setInterval(() => this.fetchStatus(), 30000);
+}
 
   displayUserId() {
     document.getElementById('user-id').textContent = this.userId;
@@ -192,17 +192,51 @@ class TextchanApp {
     const action = this.status.postingEnabled ? 'until posting closes' : 'until posting opens';
     countdownEl.textContent = `${parts.join(' ')} ${action}`;
   }
-
-  async fetchThreads() {
-    try {
-      const response = await fetch('/api/threads');
-      const data = await response.json();
-      this.threads = data;
+setupRealtimeListeners() {
+  // Listen for real-time thread updates
+  const threadEventSource = new EventSource('/api/threads/stream');
+  
+  threadEventSource.addEventListener('thread-added', (event) => {
+    const thread = JSON.parse(event.data);
+    
+    // Check if thread already exists
+    const exists = this.threads.find(t => t.id === thread.id);
+    if (!exists) {
+      this.threads.unshift(thread); // Add to top
       this.renderThreads();
-    } catch (error) {
-      console.error('Failed to fetch threads:', error);
     }
+  });
+  
+  threadEventSource.addEventListener('thread-modified', (event) => {
+    const thread = JSON.parse(event.data);
+    const index = this.threads.findIndex(t => t.id === thread.id);
+    if (index !== -1) {
+      this.threads[index] = thread;
+      this.renderThreads();
+    }
+  });
+  
+  threadEventSource.addEventListener('thread-removed', (event) => {
+    const threadId = event.data;
+    this.threads = this.threads.filter(t => t.id !== threadId);
+    this.renderThreads();
+  });
+  
+  threadEventSource.addEventListener('error', () => {
+    console.log('Real-time connection lost, falling back to polling');
+    threadEventSource.close();
+  });
+}
+async fetchThreads() {
+  try {
+    const response = await fetch('/api/threads');
+    const data = await response.json();
+    this.threads = data;
+    this.renderThreads();
+  } catch (error) {
+    console.error('Failed to fetch threads:', error);
   }
+}
 
   renderThreads() {
     const container = document.getElementById('threads-container');
