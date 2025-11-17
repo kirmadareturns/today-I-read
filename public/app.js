@@ -257,10 +257,30 @@ async fetchThreads() {
         toggleBtn.addEventListener('click', () => this.toggleReplies(thread.id));
       }
     });
+
+    this.setupReadMoreButtons();
   }
 
   renderThread(thread) {
     const replyCount = thread.replies.length;
+    const lines = thread.body.split('\n');
+    const needsTruncation = lines.length > 3;
+    
+    let contentHtml = '';
+    if (needsTruncation) {
+      const truncatedText = lines.slice(0, 3).join('\n');
+      const fullText = thread.body;
+      contentHtml = `
+        <div class="thread-content" data-truncated="true">
+          <div class="content-truncated">${this.escapeHtml(truncatedText)}<span class="truncated-indicator">...</span></div>
+          <div class="content-full hidden">${this.escapeHtml(fullText)}</div>
+          <button class="read-more-btn" data-content-id="thread-${thread.id}">[Read More]</button>
+        </div>
+      `;
+    } else {
+      contentHtml = `<div class="thread-content">${this.escapeHtml(thread.body)}</div>`;
+    }
+    
     return `
       <div class="thread" data-thread-id="${thread.id}">
         <div class="thread-header">
@@ -268,7 +288,7 @@ async fetchThreads() {
           Anonymous/${thread.userId} 
           <span class="thread-timestamp">${this.formatTimestamp(thread.createdAt)}</span>
         </div>
-        <div class="thread-content">${this.escapeHtml(thread.body)}</div>
+        ${contentHtml}
         <div class="thread-footer">
           <span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>
           <button id="toggle-${thread.id}" class="btn btn-secondary">[Show Replies]</button>
@@ -296,6 +316,7 @@ async fetchThreads() {
         toggleBtn.disabled = false;
 
         this.setupReplyForm(threadId);
+        this.setupReadMoreButtons();
       } catch (error) {
         console.error('Failed to fetch replies:', error);
         toggleBtn.textContent = '[Show Replies]';
@@ -304,6 +325,35 @@ async fetchThreads() {
     } else {
       repliesSection.classList.add('hidden');
       toggleBtn.textContent = '[Show Replies]';
+    }
+  }
+
+  setupReadMoreButtons() {
+    const readMoreButtons = document.querySelectorAll('.read-more-btn');
+    
+    readMoreButtons.forEach(button => {
+      button.removeEventListener('click', this.handleReadMoreClick);
+      button.addEventListener('click', this.handleReadMoreClick.bind(this));
+    });
+  }
+
+  handleReadMoreClick(e) {
+    const button = e.target;
+    const contentContainer = button.closest('[data-truncated]');
+    
+    if (!contentContainer) return;
+    
+    const truncatedDiv = contentContainer.querySelector('.content-truncated');
+    const fullDiv = contentContainer.querySelector('.content-full');
+    
+    if (truncatedDiv.classList.contains('hidden')) {
+      truncatedDiv.classList.remove('hidden');
+      fullDiv.classList.add('hidden');
+      button.textContent = '[Read More]';
+    } else {
+      truncatedDiv.classList.add('hidden');
+      fullDiv.classList.remove('hidden');
+      button.textContent = '[Read Less]';
     }
   }
 
@@ -337,6 +387,24 @@ async fetchThreads() {
   }
 
   renderReply(reply) {
+    const lines = reply.body.split('\n');
+    const needsTruncation = lines.length > 3;
+    
+    let contentHtml = '';
+    if (needsTruncation) {
+      const truncatedText = lines.slice(0, 3).join('\n');
+      const fullText = reply.body;
+      contentHtml = `
+        <div class="reply-content" data-truncated="true">
+          <div class="content-truncated">${this.escapeHtml(truncatedText)}<span class="truncated-indicator">...</span></div>
+          <div class="content-full hidden">${this.escapeHtml(fullText)}</div>
+          <button class="read-more-btn" data-content-id="reply-${reply.id}">[Read More]</button>
+        </div>
+      `;
+    } else {
+      contentHtml = `<div class="reply-content">${this.escapeHtml(reply.body)}</div>`;
+    }
+    
     return `
       <div class="reply">
         <div class="reply-header">
@@ -344,7 +412,7 @@ async fetchThreads() {
           Anonymous/${reply.userId} 
           <span class="thread-timestamp">${this.formatTimestamp(reply.createdAt)}</span>
         </div>
-        <div class="reply-content">${this.escapeHtml(reply.body)}</div>
+        ${contentHtml}
       </div>
     `;
   }
