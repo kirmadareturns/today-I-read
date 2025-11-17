@@ -1,3 +1,4 @@
+const { getAllThreads } = require('./firebase');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -195,7 +196,34 @@ app.post('/api/threads/:threadId/replies', async (req, res) => {
     res.status(500).json({ error: 'Failed to create reply' });
   }
 });
-
+app.get('/api/threads/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // Send initial threads
+  (async () => {
+    try {
+      const threads = await getAllThreads();
+      threads.forEach(thread => {
+        res.write(`event: thread-added\n`);
+        res.write(`data: ${JSON.stringify(thread)}\n\n`);
+      });
+    } catch (error) {
+      console.error('Error streaming threads:', error);
+    }
+  })();
+  
+  // Keep connection alive
+  const interval = setInterval(() => {
+    res.write(': heartbeat\n\n');
+  }, 30000);
+  
+  req.on('close', () => {
+    clearInterval(interval);
+    res.end();
+  });
+});
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(err.status || 500).json({
