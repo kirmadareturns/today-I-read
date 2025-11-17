@@ -192,6 +192,10 @@ init() {
     const action = this.status.postingEnabled ? 'until posting closes' : 'until posting opens';
     countdownEl.textContent = `${parts.join(' ')} ${action}`;
   }
+
+  sortThreads() {
+    this.threads.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
 setupRealtimeListeners() {
   // Listen for real-time thread updates
   const threadEventSource = new EventSource('/api/threads/stream');
@@ -203,6 +207,7 @@ setupRealtimeListeners() {
     const exists = this.threads.find(t => t.id === thread.id);
     if (!exists) {
       this.threads.unshift(thread); // Add to top
+      this.sortThreads();
       this.renderThreads();
     }
   });
@@ -212,6 +217,7 @@ setupRealtimeListeners() {
     const index = this.threads.findIndex(t => t.id === thread.id);
     if (index !== -1) {
       this.threads[index] = thread;
+      this.sortThreads();
       this.renderThreads();
     }
   });
@@ -232,6 +238,7 @@ async fetchThreads() {
     const response = await fetch('/api/threads');
     const data = await response.json();
     this.threads = data;
+    this.sortThreads();
     this.renderThreads();
   } catch (error) {
     console.error('Failed to fetch threads:', error);
