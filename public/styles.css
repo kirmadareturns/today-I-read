@@ -1,316 +1,311 @@
-/* --- 0. THE ALGORITHM (Variables) --- */
+/* --- 0. THE TYPOGRAPHY SYSTEM (The Soul of the Design) --- */
 :root {
-  /* The Fluid Palette */
-  --fluid-1: #ff00cc;
-  --fluid-2: #333399;
-  --fluid-3: #00ffff;
-  --fluid-4: #ffcc00;
+  /* Theme: "Warm Paper" */
+  --bg-paper: #f9f7f1;  /* A warm, creamy off-white */
+  --bg-surface: #ffffff;
   
-  /* Glass Physics */
-  --glass-surface: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-highlight: rgba(255, 255, 255, 0.2);
-  --blur-strength: 40px;
+  /* Ink Colors */
+  --ink-primary: #2b2b2b; /* Soft charcoal, never pure black */
+  --ink-secondary: #636363;
+  --ink-accent: #a03e3e; /* A serious, academic rust-red */
   
-  /* Animation Physics */
-  --pulse-speed: 8s;
-  --float-speed: 12s;
+  /* Layout Physics */
+  --max-read-width: 680px; /* Optimal line length for deep reading */
+  --spacing-unit: 32px;
+  --border-subtle: rgba(0,0,0,0.06);
 }
 
-/* --- 1. THE ORGANISM (Global Reset) --- */
-* { box-sizing: border-box; outline: none; }
+/* Dark Mode: "Night Reading" */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-paper: #111111;
+    --bg-surface: #1a1a1a;
+    --ink-primary: #e0e0e0;
+    --ink-secondary: #999999;
+    --ink-accent: #d4a5a5; /* Muted rose */
+    --border-subtle: rgba(255,255,255,0.1);
+  }
+}
+
+/* --- 1. GLOBAL RESET & READING ENVIRONMENT --- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  margin: 0;
-  padding: 20px;
-  font-family: 'Space Mono', 'Courier New', monospace; /* Monospace grounds the wild design */
-  min-height: 100vh;
-  background: #050505;
-  color: #fff;
-  overflow-x: hidden;
-  
-  /* The Living Background */
-  background-image: 
-    radial-gradient(circle at 15% 50%, var(--fluid-2), transparent 25%), 
-    radial-gradient(circle at 85% 30%, var(--fluid-1), transparent 25%);
-  animation: background-pulse var(--pulse-speed) ease-in-out infinite alternate;
+  background-color: var(--bg-paper);
+  color: var(--ink-primary);
+  /* The Font: 'Georgia' or 'Merriweather' provides authority and readability */
+  font-family: 'Merriweather', 'Georgia', serif; 
+  font-size: 18px;
+  line-height: 1.75; /* Generous leading for easy eye tracking */
+  padding: 40px 20px;
+  text-rendering: optimizeLegibility; /* Browser engine font smoothing */
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Floating Orbs (Pure CSS Lava Lamp) */
-body::before, body::after {
-  content: '';
-  position: fixed;
-  width: 60vw; height: 60vw;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: -1;
-  opacity: 0.6;
-  animation: orbit var(--float-speed) linear infinite;
+a {
+  color: var(--ink-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--ink-accent);
+  transition: all 0.2s ease;
 }
 
-body::before {
-  background: var(--fluid-3);
-  top: -20%; left: -10%;
+a:hover {
+  background-color: var(--ink-accent);
+  color: white;
+  text-decoration: none;
 }
 
-body::after {
-  background: var(--fluid-1);
-  bottom: -20%; right: -10%;
-  animation-delay: -6s;
-}
-
-@keyframes orbit {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  33% { transform: translate(50px, 100px) rotate(120deg); scale(1.1); }
-  66% { transform: translate(-50px, 50px) rotate(240deg); scale(0.9); }
-  100% { transform: translate(0, 0) rotate(360deg); }
-}
-
-/* --- 2. THE PRISM (Container) --- */
+/* --- 2. THE MANUSCRIPT (Container) --- */
 .container {
-  max-width: 900px;
-  margin: 40px auto;
-  background: var(--glass-surface);
-  /* This is the magic: super high blur + saturation */
-  backdrop-filter: blur(var(--blur-strength)) saturate(180%); 
-  -webkit-backdrop-filter: blur(var(--blur-strength)) saturate(180%);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  padding: 40px;
-  box-shadow: 
-    0 20px 50px rgba(0,0,0,0.2),
-    inset 0 0 0 1px rgba(255,255,255,0.05);
-  transform-style: preserve-3d;
+  max-width: var(--max-read-width);
+  margin: 0 auto;
+  /* No borders, no shadows. Just content on paper. */
+  background: transparent;
 }
 
-/* --- 3. TYPOGRAPHY (Blend Modes) --- */
-/* Text cuts through the background to show the colors behind it inverted */
-h1, h2, .tagline {
-  mix-blend-mode: exclusion;
-  color: #fff;
-  letter-spacing: -1px;
-}
-
+/* --- 3. HEADER: The Masthead --- */
 .header {
-  border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 20px;
-  margin-bottom: 40px;
-  display: flex;
-  flex-direction: column;
+  text-align: center;
+  margin-bottom: var(--spacing-unit);
+  padding-bottom: var(--spacing-unit);
+  border-bottom: 1px solid var(--ink-primary); /* The only hard line */
 }
 
 .header h1 {
-  font-size: 4rem; /* Massive */
-  font-weight: 100;
-  line-height: 0.9;
-  margin-bottom: 10px;
-  text-transform: lowercase;
+  font-family: 'Helvetica Neue', 'Inter', sans-serif; /* Sans-serif header for contrast */
+  font-weight: 900;
+  font-size: 24px;
+  letter-spacing: -0.5px;
+  text-transform: uppercase;
+  display: inline-block;
 }
 
 .tagline {
+  font-family: 'Helvetica Neue', 'Inter', sans-serif;
   font-size: 12px;
+  color: var(--ink-secondary);
   text-transform: uppercase;
-  letter-spacing: 4px;
-  opacity: 0.8;
+  letter-spacing: 1px;
+  margin-left: 12px;
+  font-weight: 500;
 }
 
-/* --- 4. THE CRYSTAL HUD (Status) --- */
+/* --- 4. STATUS: The Editor's Note --- */
 .status-banner {
+  font-family: 'Helvetica Neue', 'Inter', sans-serif;
+  font-size: 13px;
+  padding: 12px 0;
+  color: var(--ink-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 40px;
   display: flex;
   justify-content: space-between;
-  padding: 20px;
-  background: rgba(0,0,0,0.3);
-  border-radius: 16px;
-  margin-bottom: 30px;
-  border: 1px solid var(--glass-border);
-  position: relative;
-  overflow: hidden;
+  align-items: center;
 }
 
-/* A beam of light scanning the status */
-.status-banner::after {
-  content: '';
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-  transform: translateX(-100%);
-  animation: scan 4s infinite ease-in-out;
-}
+.status-message::before { content: '● '; margin-right: 6px; }
+.status-banner.enabled .status-message { color: #2e7d32; } /* Muted Green */
+.status-banner.disabled .status-message { color: var(--ink-accent); }
 
-@keyframes scan {
-  0%, 100% { transform: translateX(-100%); }
-  50% { transform: translateX(100%); }
-}
-
-.status-message { font-weight: bold; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
-.countdown { font-family: monospace; opacity: 0.7; }
-
-/* --- 5. INPUT VORTEX --- */
-.post-form {
-  position: relative;
-  background: transparent;
-  padding: 0;
+.user-id-section {
+  text-align: center;
+  font-family: 'Courier Prime', 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  margin-top: -20px;
   margin-bottom: 40px;
+}
+
+/* --- 5. INPUT: The Typewriter --- */
+.new-thread-section h2 { display: none; /* Remove label, let the UI speak */ }
+
+.post-form {
+  background: transparent;
+  margin-bottom: 60px;
+  position: relative;
 }
 
 .post-form textarea {
   width: 100%;
-  background: rgba(0,0,0,0.2);
   border: none;
-  border-radius: 0;
-  border-bottom: 2px solid var(--glass-border);
-  color: #fff;
-  padding: 20px;
-  font-family: inherit;
-  font-size: 18px; /* Large input text */
-  min-height: 120px;
+  background: transparent;
+  font-family: 'Merriweather', 'Georgia', serif;
+  font-size: 20px; /* Input is larger, encourages thought */
+  color: var(--ink-primary);
+  padding: 0;
+  min-height: 100px;
   resize: none;
-  transition: all 0.4s ease;
+  outline: none;
 }
 
-.post-form textarea:focus {
-  background: rgba(0,0,0,0.4);
-  border-bottom-color: var(--fluid-3);
-  padding-left: 30px; /* Text slides over */
+/* Placeholder styling */
+.post-form textarea::placeholder {
+  color: var(--ink-secondary);
+  font-style: italic;
+  opacity: 0.5;
+}
+
+/* The "Active" state is a simple left bar */
+.post-form:focus-within {
+  border-left: 3px solid var(--ink-accent);
+  padding-left: 20px;
+  transition: 0.3s ease;
 }
 
 .form-footer {
+  margin-top: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 15px;
+  font-family: 'Helvetica Neue', 'Inter', sans-serif;
 }
 
-/* --- 6. LIQUID BUTTONS --- */
+/* --- 6. BUTTONS: Minimalist --- */
 .btn {
   background: transparent;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.3);
-  padding: 12px 30px;
-  border-radius: 50px; /* Pill shape */
-  cursor: pointer;
-  font-family: inherit;
-  font-weight: bold;
+  border: 1px solid var(--ink-secondary);
+  color: var(--ink-primary);
+  padding: 8px 24px;
+  font-family: 'Helvetica Neue', 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  font-size: 11px;
-  transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.2s ease;
 }
 
 .btn-primary {
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(10px);
+  border-color: var(--ink-primary);
+  background: var(--ink-primary);
+  color: var(--bg-paper);
 }
 
 .btn:hover {
-  background: #fff;
-  color: #000;
-  transform: scale(1.05);
-  box-shadow: 0 0 30px var(--fluid-3);
-  border-color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-/* --- 7. FLOATING THREAD SHARDS --- */
+/* --- 7. THREADS: The Articles --- */
 .threads-container {
-  display: grid;
-  gap: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 60px; /* Huge whitespace between discussions */
 }
 
 .thread {
   position: relative;
-  background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
-  border-top: 1px solid rgba(255,255,255,0.2);
-  border-left: 1px solid rgba(255,255,255,0.1);
-  padding: 30px;
-  border-radius: 20px;
-  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-  
-  /* Entry Animation */
-  opacity: 0;
-  transform: translateY(50px) scale(0.95);
-  animation: float-in 0.8s forwards;
+  /* No background, no border. It sits on the page. */
+  animation: fadeUp 0.8s ease forwards;
 }
 
-@keyframes float-in {
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.thread:hover {
-  background: rgba(255,255,255,0.08);
-  transform: translateY(-10px) scale(1.02);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
 .thread-header {
+  font-family: 'Helvetica Neue', 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.thread-id { font-weight: bold; color: var(--ink-primary); margin-right: 8px; }
+
+/* Make the content look like a book */
+.thread-content {
+  font-size: 18px;
+  color: var(--ink-primary);
+  white-space: pre-wrap;
+  margin-bottom: 20px;
+}
+
+/* Drop Cap for the first letter of the thread - Literary feel */
+.thread > .thread-content::first-letter {
+  font-size: 3.5em;
+  float: left;
+  line-height: 0.8;
+  margin-right: 8px;
+  color: var(--ink-accent);
+  font-family: 'Georgia', serif;
+}
+
+.thread-footer {
+  font-family: 'Helvetica Neue', 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--ink-secondary);
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
-  font-size: 12px;
-  opacity: 0.6;
+  gap: 16px;
 }
 
-.thread-id {
-  border: 1px solid rgba(255,255,255,0.3);
-  padding: 4px 10px;
-  border-radius: 20px;
-  margin-right: 10px;
-  color: var(--fluid-3);
-}
-
-.thread-content {
-  font-size: 16px;
-  line-height: 1.8;
-  color: rgba(255,255,255,0.9);
-}
-
-/* --- 8. REPLIES (Staggered Stack) --- */
+/* --- 8. REPLIES: The Dialogue --- */
 .replies-section {
-  margin-top: 30px;
-  padding-left: 0;
+  margin-top: 32px;
+  padding-left: 24px;
+  /* A very thin, elegant line connecting the conversation */
+  border-left: 1px solid var(--border-subtle);
 }
 
 .reply {
-  background: rgba(0,0,0,0.3);
-  border-left: 2px solid var(--fluid-1);
-  padding: 20px;
-  margin-top: 15px;
-  border-radius: 0 16px 16px 0;
-  transition: 0.3s;
+  margin-bottom: 24px;
+  padding-left: 16px;
 }
-.reply:hover { background: rgba(0,0,0,0.5); border-left-color: var(--fluid-3); }
 
-/* --- 9. NOTIFICATIONS & SKELETONS --- */
+.reply-header {
+  font-family: 'Helvetica Neue', 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--ink-secondary);
+  margin-bottom: 4px;
+}
+
+.reply-content {
+  font-size: 16px; /* Slightly smaller than main thread */
+  line-height: 1.6;
+}
+
+.reply-form {
+  margin-top: 32px;
+  background: var(--bg-surface); /* Subtle separation for the reply box */
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* --- 9. UTILITIES & TOASTS --- */
 #toast-container {
-  position: fixed; bottom: 40px; right: 40px;
-  z-index: 999;
+  position: fixed; bottom: 30px; right: 30px;
+  display: flex; flex-direction: column; gap: 10px;
 }
 
 .toast {
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--fluid-1);
-  color: #fff;
-  padding: 15px 30px;
-  border-radius: 50px;
-  margin-top: 10px;
-  box-shadow: 0 0 20px var(--fluid-1);
-  animation: toast-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-family: 'Helvetica Neue', 'Inter', sans-serif;
+  background: var(--ink-primary);
+  color: var(--bg-paper);
+  padding: 12px 24px;
+  font-size: 13px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
 }
-@keyframes toast-pop { from{transform: scale(0);} to{transform: scale(1);} }
 
 .skeleton {
-  background: rgba(255,255,255,0.05);
-  border-radius: 4px;
-  animation: pulse-white 2s infinite;
+  background-color: var(--border-subtle);
+  height: 16px;
+  margin-bottom: 12px;
+  width: 100%;
 }
-@keyframes pulse-white { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
 
-/* --- 10. UTILITIES --- */
 .hidden { display: none; }
-.user-id { color: var(--fluid-3); mix-blend-mode: difference; }
-a { color: var(--fluid-3); text-decoration: none; border-bottom: 1px dashed var(--fluid-3); }
-a:hover { color: #fff; border-bottom-style: solid; }
 
-/* Scrollbar Hiding for Immersion */
-::-webkit-scrollbar { width: 0px; background: transparent; }
+/* Loading State for "Infinite Scroll" feel */
+.loading {
+  text-align: center;
+  font-style: italic;
+  color: var(--ink-secondary);
+  margin-top: 40px;
+}
+
+/* Scrollbar - Invisible */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border-subtle); }
