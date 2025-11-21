@@ -1,409 +1,316 @@
-/* --- 0. THE UNIVERSE (Variables) --- */
+/* --- 0. THE ALGORITHM (Variables) --- */
 :root {
-  /* Neon Palette */
-  --neon-purple: #bc13fe;
-  --neon-blue: #04d9ff;
-  --neon-pink: #ff0055;
-  --void-bg: #05050a;
-  --void-panel: #0a0a12;
+  /* The Fluid Palette */
+  --fluid-1: #ff00cc;
+  --fluid-2: #333399;
+  --fluid-3: #00ffff;
+  --fluid-4: #ffcc00;
   
-  /* Interface Colors */
-  --text-main: #e0e6ed;
-  --text-muted: #7d8590;
-  --glass-border: rgba(255, 255, 255, 0.08);
+  /* Glass Physics */
+  --glass-surface: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.2);
+  --blur-strength: 40px;
   
-  /* Physics */
-  --ease-elastic: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Animation Physics */
+  --pulse-speed: 8s;
+  --float-speed: 12s;
 }
 
-/* --- 1. THE VOID (Global Settings) --- */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* --- 1. THE ORGANISM (Global Reset) --- */
+* { box-sizing: border-box; outline: none; }
 
 body {
-  background-color: var(--void-bg);
-  color: var(--text-main);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
-  min-height: 100vh;
+  margin: 0;
   padding: 20px;
+  font-family: 'Space Mono', 'Courier New', monospace; /* Monospace grounds the wild design */
+  min-height: 100vh;
+  background: #050505;
+  color: #fff;
   overflow-x: hidden;
   
-  /* The Cyber Grid Background */
+  /* The Living Background */
   background-image: 
-    linear-gradient(rgba(188, 19, 254, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(4, 217, 255, 0.1) 1px, transparent 1px);
-  background-size: 40px 40px;
-  background-position: center top;
-  animation: grid-move 20s linear infinite;
+    radial-gradient(circle at 15% 50%, var(--fluid-2), transparent 25%), 
+    radial-gradient(circle at 85% 30%, var(--fluid-1), transparent 25%);
+  animation: background-pulse var(--pulse-speed) ease-in-out infinite alternate;
 }
 
-/* subtle movement of the grid to feel like floating */
-@keyframes grid-move {
-  0% { background-position: 0 0; }
-  100% { background-position: 0 40px; }
+/* Floating Orbs (Pure CSS Lava Lamp) */
+body::before, body::after {
+  content: '';
+  position: fixed;
+  width: 60vw; height: 60vw;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.6;
+  animation: orbit var(--float-speed) linear infinite;
 }
 
-/* CRT Scanline Overlay (The Texture) */
+body::before {
+  background: var(--fluid-3);
+  top: -20%; left: -10%;
+}
+
 body::after {
-  content: "";
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-              linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  background-size: 100% 2px, 3px 100%;
-  pointer-events: none;
-  z-index: 9999;
-  mix-blend-mode: overlay;
+  background: var(--fluid-1);
+  bottom: -20%; right: -10%;
+  animation-delay: -6s;
 }
 
-/* Custom Neon Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--void-bg); }
-::-webkit-scrollbar-thumb { 
-  background: linear-gradient(var(--neon-purple), var(--neon-blue)); 
-  border-radius: 10px; 
+@keyframes orbit {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(50px, 100px) rotate(120deg); scale(1.1); }
+  66% { transform: translate(-50px, 50px) rotate(240deg); scale(0.9); }
+  100% { transform: translate(0, 0) rotate(360deg); }
 }
 
-a { 
-  color: var(--neon-blue); 
-  text-decoration: none; 
-  transition: 0.3s;
-  text-shadow: 0 0 10px rgba(4, 217, 255, 0.4);
-}
-a:hover { color: #fff; text-shadow: 0 0 20px var(--neon-blue); }
-
-/* --- 2. THE MOTHERSHIP (Main Container) --- */
+/* --- 2. THE PRISM (Container) --- */
 .container {
-  max-width: 850px;
+  max-width: 900px;
   margin: 40px auto;
-  background: rgba(10, 10, 18, 0.6);
-  backdrop-filter: blur(12px);
-  border-radius: 16px;
-  padding: 40px;
+  background: var(--glass-surface);
+  /* This is the magic: super high blur + saturation */
+  backdrop-filter: blur(var(--blur-strength)) saturate(180%); 
+  -webkit-backdrop-filter: blur(var(--blur-strength)) saturate(180%);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 0 50px rgba(0,0,0,0.5);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 
+    0 20px 50px rgba(0,0,0,0.2),
+    inset 0 0 0 1px rgba(255,255,255,0.05);
+  transform-style: preserve-3d;
+}
+
+/* --- 3. TYPOGRAPHY (Blend Modes) --- */
+/* Text cuts through the background to show the colors behind it inverted */
+h1, h2, .tagline {
+  mix-blend-mode: exclusion;
+  color: #fff;
+  letter-spacing: -1px;
+}
+
+.header {
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 20px;
+  margin-bottom: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.header h1 {
+  font-size: 4rem; /* Massive */
+  font-weight: 100;
+  line-height: 0.9;
+  margin-bottom: 10px;
+  text-transform: lowercase;
+}
+
+.tagline {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  opacity: 0.8;
+}
+
+/* --- 4. THE CRYSTAL HUD (Status) --- */
+.status-banner {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 16px;
+  margin-bottom: 30px;
+  border: 1px solid var(--glass-border);
   position: relative;
   overflow: hidden;
 }
 
-/* The "Northern Lights" Top Border */
-.container::before {
+/* A beam of light scanning the status */
+.status-banner::after {
   content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--neon-purple), var(--neon-blue), var(--neon-pink));
-  z-index: 2;
-  box-shadow: 0 0 20px var(--neon-purple);
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transform: translateX(-100%);
+  animation: scan 4s infinite ease-in-out;
 }
 
-/* --- 3. HEADER & GLITCH TEXT --- */
-.header {
-  margin-bottom: 30px;
-  border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 20px;
+@keyframes scan {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
 }
 
-.header h1 {
-  font-size: 32px;
-  font-weight: 900;
-  color: #fff;
-  letter-spacing: -1px;
-  text-transform: lowercase;
-  position: relative;
-  display: inline-block;
-}
+.status-message { font-weight: bold; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+.countdown { font-family: monospace; opacity: 0.7; }
 
-/* Chromatic Aberration Glitch Effect on Hover */
-.header h1:hover {
-  animation: glitch-skew 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
-  color: var(--neon-pink);
-  text-shadow: 2px 0 var(--neon-blue), -2px 0 var(--neon-purple);
-}
-
-@keyframes glitch-skew {
-  0% { transform: skew(0deg); }
-  20% { transform: skew(-2deg); }
-  40% { transform: skew(2deg); }
-  60% { transform: skew(-1deg); }
-  80% { transform: skew(1deg); }
-  100% { transform: skew(0deg); }
-}
-
-.tagline {
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  color: var(--neon-blue);
-  background: rgba(4, 217, 255, 0.1);
-  padding: 4px 8px;
-  border-radius: 4px;
-  margin-left: 15px;
-  border: 1px solid rgba(4, 217, 255, 0.2);
-}
-
-/* --- 4. STATUS HUD --- */
-.status-banner {
-  background: rgba(255,255,255,0.03);
-  border-left: 4px solid var(--text-muted);
-  padding: 15px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  border-radius: 0 8px 8px 0;
-  font-family: 'Courier New', monospace;
-}
-
-.status-banner.enabled {
-  border-color: #00ff9d;
-  background: linear-gradient(90deg, rgba(0, 255, 157, 0.05), transparent);
-  box-shadow: -5px 0 15px rgba(0, 255, 157, 0.1);
-}
-
-.status-banner.disabled {
-  border-color: var(--neon-pink);
-  background: linear-gradient(90deg, rgba(255, 0, 85, 0.05), transparent);
-}
-
-.user-id-section {
-  text-align: right;
-  font-family: 'Courier New', monospace;
-  margin-bottom: 10px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.user-id { 
-  color: var(--neon-purple); 
-  text-shadow: 0 0 10px rgba(188, 19, 254, 0.5);
-  font-weight: bold;
-  letter-spacing: 1px;
-}
-
-/* --- 5. INPUT TERMINAL --- */
-h2 {
-  font-size: 14px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-bottom: 15px;
-  border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 5px;
-}
-
+/* --- 5. INPUT VORTEX --- */
 .post-form {
-  background: #0e0e16;
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  padding: 5px;
-  transition: 0.3s;
   position: relative;
-  z-index: 1;
-}
-
-/* Glowing Border Animation on Focus */
-.post-form:focus-within {
-  border-color: var(--neon-blue);
-  box-shadow: 0 0 25px rgba(4, 217, 255, 0.15);
-  transform: scale(1.01);
+  background: transparent;
+  padding: 0;
+  margin-bottom: 40px;
 }
 
 .post-form textarea {
   width: 100%;
-  background: transparent;
+  background: rgba(0,0,0,0.2);
   border: none;
+  border-radius: 0;
+  border-bottom: 2px solid var(--glass-border);
   color: #fff;
-  padding: 15px;
-  font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  padding: 20px;
+  font-family: inherit;
+  font-size: 18px; /* Large input text */
+  min-height: 120px;
   resize: none;
-  min-height: 100px;
+  transition: all 0.4s ease;
 }
-.post-form textarea:focus { outline: none; }
+
+.post-form textarea:focus {
+  background: rgba(0,0,0,0.4);
+  border-bottom-color: var(--fluid-3);
+  padding-left: 30px; /* Text slides over */
+}
 
 .form-footer {
-  border-top: 1px solid var(--glass-border);
-  padding: 10px 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0,0,0,0.2);
+  padding-top: 15px;
 }
 
-/* --- 6. CYBER BUTTONS --- */
+/* --- 6. LIQUID BUTTONS --- */
 .btn {
   background: transparent;
-  border: 1px solid var(--glass-border);
-  color: var(--text-main);
-  padding: 8px 20px;
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 12px 30px;
+  border-radius: 50px; /* Pill shape */
   cursor: pointer;
-  transition: all 0.2s var(--ease-elastic);
+  font-family: inherit;
+  font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
+  font-size: 11px;
+  transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
 
 .btn-primary {
-  border-color: var(--neon-purple);
-  color: var(--neon-purple);
-  box-shadow: 0 0 10px rgba(188, 19, 254, 0.1);
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
 }
 
-.btn-primary::before {
-  content: '';
-  position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(188, 19, 254, 0.4), transparent);
-  transition: 0.5s;
+.btn:hover {
+  background: #fff;
+  color: #000;
+  transform: scale(1.05);
+  box-shadow: 0 0 30px var(--fluid-3);
+  border-color: #fff;
 }
 
-.btn-primary:hover {
-  background: var(--neon-purple);
-  color: #fff;
-  box-shadow: 0 0 20px var(--neon-purple);
-  transform: translateY(-2px);
+/* --- 7. FLOATING THREAD SHARDS --- */
+.threads-container {
+  display: grid;
+  gap: 40px;
 }
-
-.btn-primary:hover::before { left: 100%; }
-
-.btn-secondary { font-size: 11px; border: none; color: var(--text-muted); }
-.btn-secondary:hover { color: var(--neon-blue); }
-
-/* --- 7. DATA SLATES (Threads) --- */
-.threads-container { display: flex; flex-direction: column; gap: 25px; margin-top: 30px;}
 
 .thread {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 25px;
   position: relative;
-  transition: all 0.4s var(--ease-smooth);
-  
-  /* 3D Effect setup */
-  transform-style: preserve-3d;
-  perspective: 1000px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+  border-top: 1px solid rgba(255,255,255,0.2);
+  border-left: 1px solid rgba(255,255,255,0.1);
+  padding: 30px;
+  border-radius: 20px;
+  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
   
   /* Entry Animation */
-  animation: warp-in 0.5s backwards;
+  opacity: 0;
+  transform: translateY(50px) scale(0.95);
+  animation: float-in 0.8s forwards;
 }
 
-@keyframes warp-in {
-  from { opacity: 0; transform: scale(0.9) translateY(20px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+@keyframes float-in {
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* The Hover Lift */
 .thread:hover {
-  transform: translateY(-5px) scale(1.01);
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.2);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  background: rgba(255,255,255,0.08);
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
 }
-
-/* Decoration line on thread */
-.thread::after {
-  content: '';
-  position: absolute; left: 0; top: 20px; bottom: 20px; width: 3px;
-  background: var(--glass-border);
-  transition: 0.3s;
-}
-.thread:hover::after { background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); }
 
 .thread-header {
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 15px;
   display: flex;
   align-items: center;
+  margin-bottom: 20px;
+  font-size: 12px;
+  opacity: 0.6;
 }
 
 .thread-id {
-  color: #000;
-  background: var(--neon-blue);
-  padding: 2px 6px;
-  font-weight: bold;
-  margin-right: 8px;
-  box-shadow: 0 0 10px rgba(4, 217, 255, 0.5);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-right: 10px;
+  color: var(--fluid-3);
 }
 
-.thread-content { font-size: 16px; color: #d4d4d8; margin-bottom: 20px; white-space: pre-wrap; }
-
-.thread-footer {
-  border-top: 1px solid var(--glass-border);
-  padding-top: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--text-muted);
+.thread-content {
+  font-size: 16px;
+  line-height: 1.8;
+  color: rgba(255,255,255,0.9);
 }
 
-/* --- 8. REPLIES --- */
+/* --- 8. REPLIES (Staggered Stack) --- */
 .replies-section {
-  margin-top: 20px;
-  padding-left: 20px;
-  border-left: 1px dashed var(--glass-border);
+  margin-top: 30px;
+  padding-left: 0;
 }
 
 .reply {
   background: rgba(0,0,0,0.3);
-  padding: 15px;
-  border-radius: 6px;
-  margin-bottom: 15px;
-  border: 1px solid transparent;
+  border-left: 2px solid var(--fluid-1);
+  padding: 20px;
+  margin-top: 15px;
+  border-radius: 0 16px 16px 0;
+  transition: 0.3s;
 }
-.reply:hover { border-color: var(--glass-border); }
+.reply:hover { background: rgba(0,0,0,0.5); border-left-color: var(--fluid-3); }
 
-.reply-form {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid var(--glass-border);
-  padding: 10px;
-  border-radius: 8px;
-  margin-top: 20px;
-}
-
-/* --- 9. SYSTEM ALERTS (Toasts & Skeletons) --- */
+/* --- 9. NOTIFICATIONS & SKELETONS --- */
 #toast-container {
-  position: fixed; bottom: 30px; right: 30px;
-  display: flex; flex-direction: column; gap: 15px;
-  z-index: 10000;
+  position: fixed; bottom: 40px; right: 40px;
+  z-index: 999;
 }
 
 .toast {
-  background: rgba(10, 10, 18, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--neon-blue);
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--fluid-1);
   color: #fff;
-  padding: 15px 25px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  box-shadow: 0 0 20px rgba(4, 217, 255, 0.2);
-  position: relative;
-  overflow: hidden;
-  animation: slide-in-right 0.4s var(--ease-elastic);
+  padding: 15px 30px;
+  border-radius: 50px;
+  margin-top: 10px;
+  box-shadow: 0 0 20px var(--fluid-1);
+  animation: toast-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+@keyframes toast-pop { from{transform: scale(0);} to{transform: scale(1);} }
 
-.toast.error { border-color: var(--neon-pink); box-shadow: 0 0 20px rgba(255, 0, 85, 0.2); }
-
-@keyframes slide-in-right {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
-/* Skeleton shimmer for loading */
 .skeleton {
-  background: linear-gradient(90deg, #1a1a24 25%, #272736 50%, #1a1a24 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite linear;
+  background: rgba(255,255,255,0.05);
   border-radius: 4px;
+  animation: pulse-white 2s infinite;
 }
+@keyframes pulse-white { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
 
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* --- 10. UTILITIES --- */
+.hidden { display: none; }
+.user-id { color: var(--fluid-3); mix-blend-mode: difference; }
+a { color: var(--fluid-3); text-decoration: none; border-bottom: 1px dashed var(--fluid-3); }
+a:hover { color: #fff; border-bottom-style: solid; }
 
-/* Utility */
-.hidden { display: none !important; }
-.char-counter { font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-muted); }
-.loading { color: var(--neon-blue); text-align: center; padding: 20px; font-family: 'Courier New', monospace; animation: blink 1s infinite;}
-@keyframes blink { 50% { opacity: 0.5; } }
+/* Scrollbar Hiding for Immersion */
+::-webkit-scrollbar { width: 0px; background: transparent; }
