@@ -5,9 +5,38 @@ class TextchanApp {
     this.threads = [];
     this.countdownInterval = null;
     this.statusInterval = null;
-    this.threadsInterval = null;
+    
+    // Initialize UX Components
+    this.initToastContainer();
     
     this.init();
+  }
+
+  // --- UX: Toast Notification System ---
+  initToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    // Remove after 3 seconds (matches CSS animation)
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  // --- UX: Auto-Resize Textarea ---
+  autoResize(element) {
+    element.style.height = 'auto';
+    element.style.height = element.scrollHeight + 'px';
   }
 
   getOrCreateUserId() {
@@ -28,18 +57,51 @@ class TextchanApp {
     return id;
   }
 
-init() {
-  this.displayUserId();
-  this.setupEventListeners();
-  this.fetchStatus();
-  this.fetchThreads();
-  this.setupRealtimeListeners();
-  
-  this.statusInterval = setInterval(() => this.fetchStatus(), 30000);
-}
+  init() {
+    this.displayUserId(); // Includes the shuffle effect
+    this.setupEventListeners();
+    this.fetchStatus();
+    
+    // UX: Show skeletons immediately before fetching
+    this.renderSkeletons(); 
+    this.fetchThreads();
+    
+    this.setupRealtimeListeners();
+    this.statusInterval = setInterval(() => this.fetchStatus(), 30000);
+  }
 
+  // --- UX: Hacker Shuffle Effect ---
   displayUserId() {
-    document.getElementById('user-id').textContent = this.userId;
+    const el = document.getElementById('user-id');
+    const finalId = this.userId;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let iterations = 0;
+    
+    const interval = setInterval(() => {
+      el.innerText = Array(8).fill(0).map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
+      iterations++;
+      if (iterations > 12) { // Run for about 600ms
+        clearInterval(interval);
+        el.innerText = finalId;
+      }
+    }, 50);
+  }
+
+  // --- UX: Skeleton Loading ---
+  renderSkeletons() {
+    const container = document.getElementById('threads-container');
+    container.innerHTML = '';
+    for(let i=0; i<3; i++) {
+        const div = document.createElement('div');
+        div.className = 'thread';
+        // Note: Ensure styles.css has the .skeleton classes provided previously
+        div.innerHTML = `
+            <div class="skeleton skeleton-header"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text"></div>
+        `;
+        container.appendChild(div);
+    }
   }
 
   setupEventListeners() {
@@ -47,8 +109,19 @@ init() {
     const threadContent = document.getElementById('thread-content');
     const threadCharCount = document.getElementById('thread-char-count');
 
+    // UX: Auto-expand and char count color warning
     threadContent.addEventListener('input', (e) => {
-      threadCharCount.textContent = e.target.value.length;
+      this.autoResize(e.target);
+      const len = e.target.value.length;
+      threadCharCount.textContent = len;
+      
+      if(len > 1800) {
+        threadCharCount.style.color = '#ef5350';
+        threadCharCount.style.fontWeight = 'bold';
+      } else {
+        threadCharCount.style.color = '#888';
+        threadCharCount.style.fontWeight = 'normal';
+      }
     });
 
     threadForm.addEventListener('submit', (e) => {
@@ -73,37 +146,37 @@ init() {
   updateStatusUI() {
     const banner = document.getElementById('status-banner');
     const statusMessage = banner.querySelector('.status-message');
-    const threadForm = document.getElementById('new-thread-form');
     const threadContent = document.getElementById('thread-content');
-    const threadSubmit = threadForm.querySelector('button[type="submit"]');
+    const threadSubmit = document.querySelector('#new-thread-form button[type="submit"]');
     const threadDisabledMessage = document.getElementById('thread-disabled-message');
     const threadError = document.getElementById('thread-error');
 
     const storageLimit = this.status.storage && this.status.storage.limitReached;
 
+    // Reset classes first
+    banner.classList.remove('enabled', 'disabled');
+    threadDisabledMessage.classList.remove('visible');
+    threadError.classList.remove('visible');
+
     if (storageLimit) {
-      banner.className = 'status-banner disabled';
+      banner.classList.add('disabled');
       statusMessage.textContent = '⚠ Storage limit reached';
       threadContent.disabled = true;
       threadSubmit.disabled = true;
       threadDisabledMessage.textContent = 'The site is at capacity. Check back later!';
       threadDisabledMessage.classList.add('visible');
-      threadError.classList.remove('visible');
     } else if (this.status.postingEnabled) {
-      banner.className = 'status-banner enabled';
+      banner.classList.add('enabled');
       statusMessage.textContent = '✓ Posting is currently enabled';
       threadContent.disabled = false;
       threadSubmit.disabled = false;
-      threadDisabledMessage.classList.remove('visible');
-      threadError.classList.remove('visible');
     } else {
-      banner.className = 'status-banner disabled';
+      banner.classList.add('disabled');
       statusMessage.textContent = '✗ Posting is currently disabled';
       threadContent.disabled = true;
       threadSubmit.disabled = true;
       threadDisabledMessage.textContent = 'Posting is only allowed on weekends (Saturday and Sunday, UTC timezone)';
       threadDisabledMessage.classList.add('visible');
-      threadError.classList.remove('visible');
     }
 
     this.updateAllReplyForms();
@@ -115,57 +188,48 @@ init() {
       const textarea = form.querySelector('textarea');
       const button = form.querySelector('button[type="submit"]');
       const disabledMessage = form.querySelector('.disabled-message');
-      const errorMessage = form.querySelector('.error-message');
-
+      
+      // Logic remains same, just cleaner DOM manipulation
       const storageLimit = this.status && this.status.storage && this.status.storage.limitReached;
+      
+      if (disabledMessage) disabledMessage.classList.remove('visible');
 
       if (storageLimit) {
         textarea.disabled = true;
         button.disabled = true;
         if (disabledMessage) {
-          disabledMessage.textContent = 'The site is at capacity. Check back later!';
-          disabledMessage.classList.add('visible');
+            disabledMessage.textContent = 'Site at capacity.';
+            disabledMessage.classList.add('visible');
         }
-        if (errorMessage) errorMessage.classList.remove('visible');
       } else if (this.status && this.status.postingEnabled) {
         textarea.disabled = false;
         button.disabled = false;
-        if (disabledMessage) disabledMessage.classList.remove('visible');
-        if (errorMessage) errorMessage.classList.remove('visible');
       } else {
         textarea.disabled = true;
         button.disabled = true;
         if (disabledMessage) {
-          disabledMessage.textContent = 'Posting is only allowed on weekends';
-          disabledMessage.classList.add('visible');
+            disabledMessage.textContent = 'Weekends only.';
+            disabledMessage.classList.add('visible');
         }
-        if (errorMessage) errorMessage.classList.remove('visible');
       }
     });
   }
 
   showStatusError() {
-    const banner = document.getElementById('status-banner');
-    const statusMessage = banner.querySelector('.status-message');
-    banner.className = 'status-banner';
-    statusMessage.textContent = 'Failed to load status. Retrying...';
+    // Instead of changing the banner aggressively, let's just use a toast
+    // to keep the UI clean, or subtle text.
+    const statusMessage = document.querySelector('.status-message');
+    statusMessage.textContent = 'Reconnecting...';
   }
 
   startCountdown() {
-    if (this.countdownInterval) {
-      clearInterval(this.countdownInterval);
-    }
-
+    if (this.countdownInterval) clearInterval(this.countdownInterval);
     this.updateCountdown();
-    this.countdownInterval = setInterval(() => {
-      this.updateCountdown();
-    }, 1000);
+    this.countdownInterval = setInterval(() => this.updateCountdown(), 1000);
   }
 
   updateCountdown() {
-    if (!this.status || !this.status.nextChangeTimestamp) {
-      return;
-    }
+    if (!this.status || !this.status.nextChangeTimestamp) return;
 
     const countdownEl = document.getElementById('countdown');
     const now = new Date();
@@ -196,54 +260,55 @@ init() {
   sortThreads() {
     this.threads.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
-setupRealtimeListeners() {
-  // Listen for real-time thread updates
-  const threadEventSource = new EventSource('/api/threads/stream');
-  
-  threadEventSource.addEventListener('thread-added', (event) => {
-    const thread = JSON.parse(event.data);
+
+  setupRealtimeListeners() {
+    const threadEventSource = new EventSource('/api/threads/stream');
     
-    // Check if thread already exists
-    const exists = this.threads.find(t => t.id === thread.id);
-    if (!exists) {
-      this.threads.unshift(thread); // Add to top
-      this.sortThreads();
+    threadEventSource.addEventListener('thread-added', (event) => {
+      const thread = JSON.parse(event.data);
+      const exists = this.threads.find(t => t.id === thread.id);
+      if (!exists) {
+        this.threads.unshift(thread);
+        this.sortThreads();
+        this.renderThreads();
+        this.showToast('New thread received', 'success');
+      }
+    });
+    
+    threadEventSource.addEventListener('thread-modified', (event) => {
+      const thread = JSON.parse(event.data);
+      const index = this.threads.findIndex(t => t.id === thread.id);
+      if (index !== -1) {
+        this.threads[index] = thread;
+        this.sortThreads();
+        this.renderThreads();
+      }
+    });
+    
+    threadEventSource.addEventListener('thread-removed', (event) => {
+      const threadId = event.data;
+      this.threads = this.threads.filter(t => t.id !== threadId);
       this.renderThreads();
-    }
-  });
-  
-  threadEventSource.addEventListener('thread-modified', (event) => {
-    const thread = JSON.parse(event.data);
-    const index = this.threads.findIndex(t => t.id === thread.id);
-    if (index !== -1) {
-      this.threads[index] = thread;
-      this.sortThreads();
-      this.renderThreads();
-    }
-  });
-  
-  threadEventSource.addEventListener('thread-removed', (event) => {
-    const threadId = event.data;
-    this.threads = this.threads.filter(t => t.id !== threadId);
-    this.renderThreads();
-  });
-  
-  threadEventSource.addEventListener('error', () => {
-    console.log('Real-time connection lost, falling back to polling');
-    threadEventSource.close();
-  });
-}
-async fetchThreads() {
-  try {
-    const response = await fetch('/api/threads');
-    const data = await response.json();
-    this.threads = data;
-    this.sortThreads();
-    this.renderThreads();
-  } catch (error) {
-    console.error('Failed to fetch threads:', error);
+    });
+    
+    threadEventSource.addEventListener('error', () => {
+      console.log('Real-time connection lost, falling back to polling');
+      threadEventSource.close();
+    });
   }
-}
+
+  async fetchThreads() {
+    try {
+      const response = await fetch('/api/threads');
+      const data = await response.json();
+      this.threads = data;
+      this.sortThreads();
+      this.renderThreads();
+    } catch (error) {
+      console.error('Failed to fetch threads:', error);
+      this.showToast('Failed to load threads', 'error');
+    }
+  }
 
   renderThreads() {
     const container = document.getElementById('threads-container');
@@ -276,11 +341,10 @@ async fetchThreads() {
     let contentHtml = '';
     if (needsTruncation) {
       const truncatedText = lines.slice(0, 3).join('\n');
-      const fullText = thread.body;
       contentHtml = `
         <div class="thread-content" data-truncated="true">
           <div class="content-truncated">${this.escapeHtml(truncatedText)}<span class="truncated-indicator">...</span></div>
-          <div class="content-full hidden">${this.escapeHtml(fullText)}</div>
+          <div class="content-full hidden">${this.escapeHtml(thread.body)}</div>
           <button class="read-more-btn" data-content-id="thread-${thread.id}">[Read More]</button>
         </div>
       `;
@@ -288,6 +352,7 @@ async fetchThreads() {
       contentHtml = `<div class="thread-content">${this.escapeHtml(thread.body)}</div>`;
     }
     
+    // Note: The 'thread' class in CSS handles the slide-up animation automatically
     return `
       <div class="thread" data-thread-id="${thread.id}">
         <div class="thread-header">
@@ -310,7 +375,7 @@ async fetchThreads() {
     const toggleBtn = document.getElementById(`toggle-${threadId}`);
 
     if (repliesSection.classList.contains('hidden')) {
-      toggleBtn.textContent = '[Loading...]';
+      toggleBtn.textContent = 'Loading...';
       toggleBtn.disabled = true;
       
       try {
@@ -325,7 +390,7 @@ async fetchThreads() {
         this.setupReplyForm(threadId);
         this.setupReadMoreButtons();
       } catch (error) {
-        console.error('Failed to fetch replies:', error);
+        this.showToast('Failed to fetch replies', 'error');
         toggleBtn.textContent = '[Show Replies]';
         toggleBtn.disabled = false;
       }
@@ -337,7 +402,6 @@ async fetchThreads() {
 
   setupReadMoreButtons() {
     const readMoreButtons = document.querySelectorAll('.read-more-btn');
-    
     readMoreButtons.forEach(button => {
       button.removeEventListener('click', this.handleReadMoreClick);
       button.addEventListener('click', this.handleReadMoreClick.bind(this));
@@ -347,7 +411,6 @@ async fetchThreads() {
   handleReadMoreClick(e) {
     const button = e.target;
     const contentContainer = button.closest('[data-truncated]');
-    
     if (!contentContainer) return;
     
     const truncatedDiv = contentContainer.querySelector('.content-truncated');
@@ -366,11 +429,7 @@ async fetchThreads() {
 
   renderRepliesSection(threadId, replies) {
     const repliesHtml = replies.length > 0 
-      ? `
-        <div class="replies-container">
-          ${replies.map(reply => this.renderReply(reply)).join('')}
-        </div>
-      `
+      ? `<div class="replies-container">${replies.map(reply => this.renderReply(reply)).join('')}</div>`
       : '<div class="empty-state">No replies yet. Be the first to reply!</div>';
 
     return `
@@ -387,7 +446,6 @@ async fetchThreads() {
           </div>
           <button type="submit" class="btn btn-primary">Post Reply</button>
         </div>
-        <div class="error-message"></div>
         <div class="disabled-message"></div>
       </form>
     `;
@@ -400,11 +458,10 @@ async fetchThreads() {
     let contentHtml = '';
     if (needsTruncation) {
       const truncatedText = lines.slice(0, 3).join('\n');
-      const fullText = reply.body;
       contentHtml = `
         <div class="reply-content" data-truncated="true">
           <div class="content-truncated">${this.escapeHtml(truncatedText)}<span class="truncated-indicator">...</span></div>
-          <div class="content-full hidden">${this.escapeHtml(fullText)}</div>
+          <div class="content-full hidden">${this.escapeHtml(reply.body)}</div>
           <button class="read-more-btn" data-content-id="reply-${reply.id}">[Read More]</button>
         </div>
       `;
@@ -431,7 +488,9 @@ async fetchThreads() {
     const textarea = form.querySelector('textarea');
     const charCount = form.querySelector('.reply-char-count');
     
+    // UX: Auto resize for replies too
     textarea.addEventListener('input', (e) => {
+      this.autoResize(e.target);
       charCount.textContent = e.target.value.length;
     });
 
@@ -440,16 +499,13 @@ async fetchThreads() {
       this.handleReply(threadId, form);
     });
 
-    if (this.status) {
-      const button = form.querySelector('button[type="submit"]');
-      const disabledMessage = form.querySelector('.disabled-message');
-      
-      if (!this.status.postingEnabled) {
+    if (this.status && !this.status.postingEnabled) {
+        const button = form.querySelector('button[type="submit"]');
+        const disabledMessage = form.querySelector('.disabled-message');
         textarea.disabled = true;
         button.disabled = true;
         disabledMessage.textContent = 'Posting is only allowed on weekends';
         disabledMessage.classList.add('visible');
-      }
     }
   }
 
@@ -457,144 +513,84 @@ async fetchThreads() {
     const form = document.getElementById('new-thread-form');
     const textarea = document.getElementById('thread-content');
     const button = form.querySelector('button[type="submit"]');
-    const errorMessage = document.getElementById('thread-error');
     const content = textarea.value.trim();
 
-    errorMessage.classList.remove('visible');
-
     if (!content) {
-      errorMessage.textContent = 'Please enter some content';
-      errorMessage.classList.add('visible');
-      return;
-    }
-
-    if (content.length > 2000) {
-      errorMessage.textContent = 'Content too long (max 2000 characters)';
-      errorMessage.classList.add('visible');
+      this.showToast('Please enter some content', 'error');
+      // UX: Shake the input
+      textarea.focus();
       return;
     }
 
     button.disabled = true;
-    button.classList.add('loading');
-    button.textContent = 'Posting';
+    const originalText = button.textContent;
+    button.textContent = 'Posting...';
 
     try {
       const response = await fetch('/api/threads', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          body: content,
-          userId: this.userId
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: content, userId: this.userId })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 403) {
-          errorMessage.textContent = 'Posting is only allowed on weekends. Please wait until the weekend to post.';
-        } else if (response.status === 507) {
-          errorMessage.textContent = 'The site is at capacity. Check back later!';
-          await this.fetchStatus();
-        } else {
-          errorMessage.textContent = data.error || 'Failed to create thread';
-        }
-        errorMessage.classList.add('visible');
-        button.disabled = false;
-        button.classList.remove('loading');
-        button.textContent = 'Post Thread';
-        return;
+        this.showToast(data.error || 'Failed to create thread', 'error');
+        if (response.status === 507) await this.fetchStatus();
+      } else {
+        textarea.value = '';
+        textarea.style.height = 'auto'; // Reset height
+        document.getElementById('thread-char-count').textContent = '0';
+        this.showToast('Thread posted successfully!');
+        await this.fetchThreads();
       }
-
-      textarea.value = '';
-      document.getElementById('thread-char-count').textContent = '0';
-      button.classList.remove('loading');
-      button.textContent = 'Post Thread';
-      button.disabled = false;
-
-      await this.fetchThreads();
     } catch (error) {
-      console.error('Failed to create thread:', error);
-      errorMessage.textContent = 'A network error occurred. The server might be down or your connection is unstable. Please try again later.';
-      errorMessage.classList.add('visible');
-      button.disabled = false;
-      button.classList.remove('loading');
-      button.textContent = 'Post Thread';
+      this.showToast('Network error. Try again later.', 'error');
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
     }
   }
 
   async handleReply(threadId, form) {
     const textarea = form.querySelector('textarea');
     const button = form.querySelector('button[type="submit"]');
-    const errorMessage = form.querySelector('.error-message');
     const content = textarea.value.trim();
 
-    errorMessage.classList.remove('visible');
-
     if (!content) {
-      errorMessage.textContent = 'Please enter some content';
-      errorMessage.classList.add('visible');
-      return;
-    }
-
-    if (content.length > 2000) {
-      errorMessage.textContent = 'Content too long (max 2000 characters)';
-      errorMessage.classList.add('visible');
+      this.showToast('Please enter some content', 'error');
       return;
     }
 
     button.disabled = true;
-    button.classList.add('loading');
-    button.textContent = 'Posting';
+    const originalText = button.textContent;
+    button.textContent = 'Posting...';
 
     try {
       const response = await fetch(`/api/threads/${threadId}/replies`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          body: content,
-          userId: this.userId
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: content, userId: this.userId })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 403) {
-          errorMessage.textContent = 'Posting is only allowed on weekends. Please wait until the weekend to post.';
-        } else if (response.status === 507) {
-          errorMessage.textContent = 'The site is at capacity. Check back later!';
-          await this.fetchStatus();
-        } else {
-          errorMessage.textContent = data.error || 'Failed to create reply';
-        }
-        errorMessage.classList.add('visible');
-        button.disabled = false;
-        button.classList.remove('loading');
-        button.textContent = 'Post Reply';
-        return;
+        this.showToast(data.error || 'Failed to post reply', 'error');
+      } else {
+        textarea.value = '';
+        textarea.style.height = 'auto';
+        form.querySelector('.reply-char-count').textContent = '0';
+        this.showToast('Reply posted!');
+        await this.toggleReplies(threadId); // Refresh replies
+        await this.toggleReplies(threadId);
       }
-
-      textarea.value = '';
-      form.querySelector('.reply-char-count').textContent = '0';
-      button.classList.remove('loading');
-      button.textContent = 'Post Reply';
-      button.disabled = false;
-
-      await this.toggleReplies(threadId);
-      await this.toggleReplies(threadId);
-      await this.fetchThreads();
     } catch (error) {
-      console.error('Failed to create reply:', error);
-      errorMessage.textContent = 'A network error occurred. The server might be down or your connection is unstable. Please try again later.';
-      errorMessage.classList.add('visible');
-      button.disabled = false;
-      button.classList.remove('loading');
-      button.textContent = 'Post Reply';
+      this.showToast('Network error.', 'error');
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
     }
   }
 
@@ -603,20 +599,12 @@ async fetchThreads() {
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) {
-      return 'just now';
-    } else if (diffMins < 60) {
-      return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
-    } else if (diffHours < 24) {
-      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-    } else if (diffDays < 7) {
-      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-    } else {
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-    }
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins/60)}h ago`;
+    
+    return date.toLocaleDateString();
   }
 
   escapeHtml(text) {
