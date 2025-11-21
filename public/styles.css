@@ -1,206 +1,349 @@
+/* --- 1. DESIGN TOKENS (The DNA of the app) --- */
 :root {
-  --primary: #7c3aed;
-  --primary-dark: #6d28d9;
-  --primary-light: #a78bfa;
-  --bg-body: #ede9fe;
-  --bg-card: #ffffff;
-  --bg-input: #f3e8ff;
-  --text-main: #1a1a1a;
-  --text-muted: #555555;
-  --border: #ddd6fe;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Modern Violet Palette */
+  --primary: #8b5cf6;
+  --primary-glow: rgba(139, 92, 246, 0.5);
+  --primary-dark: #7c3aed;
+  
+  /* Light Theme (Default) */
+  --bg-app: #f8fafc;
+  --bg-panel: rgba(255, 255, 255, 0.7);
+  --bg-input: rgba(255, 255, 255, 0.9);
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --border: rgba(148, 163, 184, 0.2);
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.15);
+  
+  /* Animation Physics */
+  --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* --- 2. DARK MODE (Automatic High-End Dark Theme) --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-app: #0f172a; /* Deep slate */
+    --bg-panel: rgba(30, 41, 59, 0.6);
+    --bg-input: rgba(15, 23, 42, 0.8);
+    --text-main: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: rgba(255, 255, 255, 0.08);
+    --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 0 25px rgba(139, 92, 246, 0.25);
+  }
+}
+
+/* --- 3. GLOBAL RESET & TYPOGRAPHY --- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: Verdana, Geneva, sans-serif;
-  font-size: 10pt;
-  line-height: 1.5;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--text-main);
-  background-color: var(--bg-body);
-  padding: 12px;
-  /* Smooth scrolling for the whole page */
-  scroll-behavior: smooth;
+  background-color: var(--bg-app);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.1) 0px, transparent 50%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  padding: 20px 12px;
+  transition: background-color 0.3s ease;
 }
 
-/* --- Layout & Typography --- */
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+a { color: var(--primary); text-decoration: none; font-weight: 500; position: relative; }
+a::after {
+  content: ''; position: absolute; bottom: -2px; left: 0; width: 0%; height: 1px;
+  background: var(--primary); transition: width 0.3s var(--ease-elastic);
+}
+a:hover::after { width: 100%; }
+
+/* --- 4. LAYOUT & GLASSMORPHISM --- */
 .container {
-  max-width: 900px;
+  max-width: 800px;
   margin: 0 auto;
-  background-color: var(--bg-card);
+  background: var(--bg-panel);
+  backdrop-filter: blur(20px); /* The Frosted Glass Effect */
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
-  padding: 20px;
-  box-shadow: var(--shadow-md);
-  border-radius: 4px;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: var(--shadow-card);
 }
 
-a { color: var(--primary); text-decoration: none; transition: color 0.2s; }
-a:hover { text-decoration: underline; color: var(--primary-dark); }
-
-h1 { font-size: 20px; color: var(--primary); display: inline-block; }
-h2 {
-  font-size: 14px;
-  color: var(--primary);
+/* --- 5. HEADER & STATUS --- */
+.header {
   border-bottom: 1px solid var(--border);
-  padding-bottom: 8px;
-  margin-bottom: 12px;
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: baseline;
 }
 
-/* --- Micro-Interactions: Buttons --- */
-.btn {
-  padding: 8px 16px;
-  border: 1px solid var(--primary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Tactile 'press' effect */
-.btn:active:not(:disabled) {
-  transform: translateY(1px) scale(0.98);
-}
-
-.btn-primary {
-  background-color: var(--primary);
-  color: white;
-  box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-dark);
-  box-shadow: 0 4px 6px rgba(124, 58, 237, 0.3);
-  transform: translateY(-1px);
-}
-
-/* --- Micro-Interactions: Inputs --- */
-.post-form {
-  background-color: var(--bg-input);
-  border: 1px solid var(--border);
-  padding: 12px;
-  border-radius: 4px;
-  transition: box-shadow 0.2s ease;
-}
-
-.post-form:focus-within {
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
-  border-color: var(--primary-light);
-}
-
-textarea {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  font-family: inherit;
-  resize: none; /* We will handle resize with JS */
-  overflow-y: hidden; /* Hide scrollbar for auto-expand */
-  transition: border-color 0.2s, background-color 0.2s;
-  background: #fff;
-}
-
-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-/* --- Dynamic UI Elements --- */
-.user-id {
+.header h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--primary) 0%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   display: inline-block;
-  background: var(--bg-input);
-  padding: 2px 6px;
-  border-radius: 3px;
-  border: 1px solid var(--border);
 }
 
-/* Status Banner pulsing effect to show it's "live" */
+.tagline {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
 .status-banner {
-  border-radius: 4px;
-  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  animation: pulse-border 4s infinite;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
 }
 
-@keyframes pulse-border {
-  0% { border-color: var(--primary-light); }
-  50% { border-color: var(--primary); }
-  100% { border-color: var(--primary-light); }
+/* Status Glow Indicator */
+.status-banner::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--text-muted);
+  transition: background 0.3s ease;
 }
 
-/* --- Threads & Animations --- */
-.thread {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--primary);
-  padding: 12px;
+.status-banner.enabled::before { background: #10b981; box-shadow: 0 0 10px #10b981; }
+.status-banner.disabled::before { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+
+.countdown { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+/* --- 6. INPUTS (The Tactile Experience) --- */
+.user-id-section {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
   margin-bottom: 16px;
-  border-radius: 0 4px 4px 0;
+  text-align: right;
+}
+.user-id { color: var(--primary); background: rgba(139, 92, 246, 0.1); padding: 2px 6px; border-radius: 4px; }
+
+h2 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.post-form {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px; /* Minimal padding, input does the work */
+  transition: transform 0.2s var(--ease-elastic), box-shadow 0.2s ease;
+}
+
+.post-form:focus-within {
+  transform: scale(1.01);
+  box-shadow: var(--shadow-glow);
+  border-color: var(--primary);
+}
+
+.post-form textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  padding: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  min-height: 100px;
+  resize: none;
+}
+.post-form textarea:focus { outline: none; }
+
+.form-footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* --- 7. BUTTONS (Micro-interactions) --- */
+.btn {
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-elastic);
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+}
+
+.btn-primary:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--primary); background: rgba(139, 92, 246, 0.05); }
+
+/* --- 8. THREADS & CARDS --- */
+.threads-container { display: flex; flex-direction: column; gap: 24px; }
+
+.thread {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  position: relative;
+  transition: all 0.3s ease;
   /* Entry Animation */
-  animation: slideUpFade 0.4s var(--ease-bounce) forwards;
+  animation: slideIn 0.5s var(--ease-elastic) forwards;
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(20px);
 }
 
-@keyframes slideUpFade {
-  to { opacity: 1; transform: translateY(0); }
+@keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
+
+.thread:hover {
+  border-color: var(--primary-glow);
+  box-shadow: var(--shadow-card);
 }
 
-/* --- Skeleton Loading (Perceived Performance) --- */
+.thread-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.thread-id {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--text-main);
+  color: var(--bg-app);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.thread-timestamp { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+
+.thread-content {
+  font-size: 15px;
+  color: var(--text-main);
+  white-space: pre-wrap;
+  margin-bottom: 16px;
+}
+
+.thread-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* --- 9. REPLIES (Visual Hierarchy) --- */
+.replies-section {
+  margin-top: 16px;
+  padding-left: 16px;
+  border-left: 2px solid var(--border);
+}
+
+.reply {
+  background: rgba(139, 92, 246, 0.03);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid transparent;
+}
+.reply:hover { border-color: var(--border); background: var(--bg-input); }
+
+.reply-form {
+  margin-top: 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+/* --- 10. SKELETON & TOASTS --- */
 .skeleton {
-  background: #e0e0e0;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-input) 50%, var(--border) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 4px;
-  margin-bottom: 8px;
+  border-radius: 6px;
 }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.skeleton-header { height: 14px; width: 30%; margin-bottom: 10px; }
-.skeleton-text { height: 12px; width: 90%; margin-bottom: 6px; }
-.skeleton-text:last-child { width: 60%; }
-
-/* --- Toast Notifications (Instead of static error divs) --- */
 #toast-container {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 12px;
 }
 
 .toast {
-  padding: 10px 16px;
-  background: #333;
-  color: #fff;
-  border-radius: 4px;
-  font-size: 12px;
-  box-shadow: var(--shadow-md);
-  animation: slideInRight 0.3s ease forwards;
-  max-width: 300px;
+  background: var(--text-main);
+  color: var(--bg-app);
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  font-size: 13px;
+  font-weight: 600;
+  animation: toastIn 0.3s var(--ease-elastic) forwards;
+  display: flex; align-items: center;
+}
+.toast.error { background: #ef4444; color: white; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.toast.error { background: #ef5350; }
-.toast.success { background: #4caf50; }
-
-@keyframes slideInRight {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+/* --- Utilities --- */
+.hidden { display: none !important; }
+.loading { text-align: center; color: var(--text-muted); padding: 20px; }
+.empty-state { 
+  text-align: center; padding: 40px; 
+  color: var(--text-muted); 
+  border: 2px dashed var(--border); 
+  border-radius: 12px; 
 }
-
-/* Utility */
-.hidden { display: none; }
