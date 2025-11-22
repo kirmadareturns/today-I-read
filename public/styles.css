@@ -1,314 +1,312 @@
-/* --- 0. GLOBAL VARIABLES (Theme: Clean Blue Forum) --- */
+/* --- 0. SYSTEM VARIABLES (Theme: vBulletin/phpBB Legacy) --- */
 :root {
-  /* Palette: Professional & Legible */
-  --bg-body: #f0f2f5;       /* Light gray background */
-  --bg-card: #ffffff;       /* White containers */
-  --bg-input: #f9fafb;      /* Very light gray for inputs */
+  /* The "Serious" Palette - Cold & Industrial */
+  --page-bg: #2e353d;          /* Dark slate background outside the forum */
+  --container-bg: #f5f5f5;     /* Main content area */
   
-  /* Accents */
-  --primary-blue: #2563eb;  /* Standard Link/Button Blue */
-  --primary-hover: #1d4ed8;
-  --border-color: #d1d5db;  /* Neutral borders */
+  /* The "Table" Look */
+  --header-grad-top: #5c7080;  /* Gradient for category bars */
+  --header-grad-bot: #374a5c;
+  --border-dark: #202936;      /* Hard borders */
+  --border-light: #ffffff;     /* For bevel effects */
+  
+  /* Post Backgrounds (Alternating colors were huge back then) */
+  --post-bg-1: #f0f4f7;        /* Very light steel blue */
+  --post-bg-2: #e1e7ed;        /* Slightly darker steel */
   
   /* Typography */
-  --text-main: #111827;     /* Near black for readability */
-  --text-muted: #6b7280;    /* Gray for metadata */
-  --font-stack: 'Verdana', 'Segoe UI', Helvetica, sans-serif; /* Classic forum fonts */
+  --font-stack: 'Verdana', 'Tahoma', sans-serif; /* The holy grail of old forums */
+  --text-main: #000000;
+  --text-link: #224488;        /* Classic deep blue links */
 }
 
-/* --- 1. BASE SETTINGS --- */
+/* --- 1. GLOBAL RESET --- */
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  padding: 40px 20px;
-  background-color: var(--bg-body);
+  padding: 20px;
+  background-color: var(--page-bg);
   color: var(--text-main);
   font-family: var(--font-stack);
-  line-height: 1.5;
+  font-size: 11px; /* Authentic small font size */
+  line-height: 1.4;
 }
 
-/* Remove the sci-fi background effects */
+/* Remove all modern overlays */
 body::before, body::after { display: none; }
 
 a { 
-  color: var(--primary-blue); 
-  text-decoration: none; 
-  font-weight: 600;
+  color: var(--text-link); 
+  text-decoration: underline; 
+  cursor: pointer;
 }
-a:hover { text-decoration: underline; }
+a:hover { color: #ff0000; } /* Classic hover red */
 
-/* --- 2. MAIN LAYOUT (The Board) --- */
+/* --- 2. MAIN CONTAINER (The "Table") --- */
 .container {
-  max-width: 900px;
+  max-width: 950px; /* Wider, rigid width */
   margin: 0 auto;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Subtle shadow, no glow */
-  padding: 0; /* Reset padding to let header touch edges */
-  overflow: hidden;
+  background: var(--container-bg);
+  border: 1px solid #000;
+  padding: 6px; /* Inner padding usually mimicked cellspacing */
+  box-shadow: none;
+  border-radius: 0;
 }
 
-/* Remove corner decorations */
 .container::after, .container::before { display: none; }
 
 /* --- 3. HEADER --- */
 .header {
-  background: var(--primary-blue);
-  padding: 20px 30px;
+  background: #e1e7ed;
+  padding: 10px;
+  border: 1px solid var(--border-dark);
+  margin-bottom: 10px;
   text-align: left;
-  border-bottom: 1px solid var(--primary-hover);
-  margin-bottom: 0;
 }
 
 .header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: normal;
-  text-transform: none;
+  font-family: 'Trebuchet MS', 'Arial', sans-serif;
+  font-size: 18px;
+  font-weight: bold;
+  color: #000;
   margin: 0;
-  color: #ffffff; /* White text on blue header */
-  text-shadow: none;
+  text-transform: none;
+  letter-spacing: normal;
   background: none;
   -webkit-text-fill-color: initial;
+  text-shadow: none;
 }
 
 .tagline {
+  font-size: 10px;
+  color: #555;
+  margin-top: 2px;
   display: block;
-  margin-top: 5px;
-  font-size: 0.85rem;
-  letter-spacing: normal;
-  color: rgba(255, 255, 255, 0.8);
-  text-transform: none;
 }
 
-/* --- 4. STATUS BAR (Breadcrumbs/Info) --- */
+/* --- 4. STATUS BAR (The "User CP" Bar) --- */
 .status-banner {
-  background: #e5e7eb;
-  border-bottom: 1px solid var(--border-color);
-  border-left: none; /* Remove thick accent */
-  padding: 10px 30px;
-  margin-bottom: 30px;
+  background: #d1d7dc;
+  border: 1px solid var(--border-dark);
+  padding: 5px 10px;
+  margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 10px;
+  color: #000;
 }
 
-.status-message { 
-  font-weight: 600; 
-  text-transform: none;
-  color: var(--text-main);
-  text-shadow: none;
+.status-message {
+  font-weight: bold;
+  color: #005500; /* Dark green for active */
 }
 
 .user-id-section {
-  padding: 10px 30px;
   text-align: right;
-  font-family: var(--font-stack);
-  color: var(--text-muted);
-  font-size: 12px;
-  margin-top: 0;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--bg-body);
+  font-size: 10px;
+  color: #444;
+  margin: -5px 0 10px 0;
+  padding-right: 5px;
 }
+.user-id { font-weight: bold; color: #000; }
 
-.user-id { color: var(--text-main); font-weight: bold; }
-
-/* --- 5. INPUT FORM --- */
+/* --- 5. SECTION HEADERS (The "Thead" Gradient) --- */
 h2 {
-  font-size: 16px;
-  color: var(--text-main);
+  display: block;
+  width: 100%;
+  background: linear-gradient(to bottom, var(--header-grad-top), var(--header-grad-bot));
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 6px 10px;
+  margin: 0;
+  border: 1px solid var(--border-dark);
   text-transform: none;
   letter-spacing: normal;
-  margin: 0 0 15px 0;
-  padding: 0 30px;
-  border-bottom: 2px solid var(--primary-blue);
-  display: inline-block;
-  margin-left: 30px;
-  padding-bottom: 5px;
 }
 
+/* --- 6. FORMS --- */
 .post-form {
-  background: var(--bg-body);
-  border: 1px solid var(--border-color);
-  padding: 20px;
-  margin: 0 30px 30px 30px;
-  border-radius: 6px;
-}
-
-.post-form:focus-within {
-  border-color: var(--primary-blue);
-  box-shadow: none;
+  background: var(--post-bg-2);
+  border: 1px solid var(--border-dark);
+  border-top: none; /* Connected to H2 */
+  padding: 10px;
+  margin-bottom: 15px;
 }
 
 textarea {
   width: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  font-family: inherit;
-  font-size: 14px;
-  padding: 10px;
+  background: #fff;
+  border: 1px solid #7c7c7c;
+  /* Inset style for depth */
+  border-top-color: #444;
+  border-left-color: #444;
+  color: #000;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  padding: 4px;
   min-height: 100px;
-  outline: none;
-  border-radius: 4px;
-}
-
-textarea:focus {
-  border-color: var(--primary-blue);
-  outline: 2px solid rgba(37, 99, 235, 0.2);
+  border-radius: 0;
 }
 
 .form-footer {
-  margin-top: 15px;
+  margin-top: 8px;
   padding-top: 0;
-  border-top: none;
+  border: none;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 5px;
 }
 
-/* --- 6. BUTTONS --- */
+/* --- 7. BUTTONS (Beveled Look) --- */
 .btn {
-  background: var(--primary-blue);
-  border: 1px solid var(--primary-blue);
-  color: white;
-  padding: 8px 20px;
-  font-family: inherit;
+  background: #e0e0e0;
+  border: 1px solid #888;
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid #444;
+  border-bottom: 1px solid #444;
+  color: #000;
+  padding: 2px 10px;
+  font-family: var(--font-stack);
+  font-size: 10px;
+  font-weight: normal;
+  cursor: pointer;
   text-transform: none;
   letter-spacing: normal;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 4px;
-  cursor: pointer;
-  box-shadow: none;
+  border-radius: 0;
 }
 
-.btn::before { display: none; } /* Remove slide effect */
+.btn::before { display: none; }
 
-.btn:hover {
-  background: var(--primary-hover);
-  color: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.btn:active {
+  /* Pressed state */
+  border-top: 1px solid #444;
+  border-left: 1px solid #444;
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  background: #ccc;
 }
 
-.btn-secondary {
-  background: white;
-  border-color: var(--border-color);
-  color: var(--text-muted);
-}
+.btn:hover { background: #dcdcdc; }
 
-.btn-secondary:hover {
-  background: #f3f4f6;
-  color: var(--text-main);
-  border-color: #9ca3af;
-}
-
-/* --- 7. THREADS (Forum Posts) --- */
-.threads-container { 
-  display: flex; 
-  flex-direction: column; 
-  gap: 0; /* Connect borders like a real table/list */
-  border-top: 1px solid var(--border-color);
+/* --- 8. THREAD LIST (The Grid) --- */
+.threads-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid var(--border-dark);
+  background: #999; /* Gaps look like borders */
+  padding: 1px;
 }
 
 .thread {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
-  border-left: none; /* Remove sci-fi accent */
-  padding: 25px 30px;
+  /* Alternating background logic usually handled by JS/Server, 
+     here we just set a default light blue */
+  background: var(--post-bg-1);
+  border: none; 
+  padding: 8px 10px;
   position: relative;
-  transform: none; /* Remove 3D float */
+  transform: none;
+}
+
+/* Fake alternating rows if they were strictly ordered elements */
+.thread:nth-child(even) {
+  background: var(--post-bg-2);
 }
 
 .thread:hover {
-  background: #f9fafb; /* Slight gray on hover */
-  border-left-color: transparent;
+  background: #ffffdd; /* The classic "highlight" pale yellow/white */
   transform: none;
   box-shadow: none;
+  border: none;
 }
 
 .thread-header {
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  color: var(--text-main);
-  margin-bottom: 8px;
-  opacity: 1;
+  font-size: 10px;
+  color: #444;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 2px;
+  display: block;
 }
 
 .thread-id { 
-  margin-right: 10px; 
+  color: #000; 
   font-weight: bold; 
-  color: var(--primary-blue);
+  float: right;
 }
 
 .thread-content {
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text-main);
-  text-shadow: none;
+  font-size: 12px;
+  color: #000;
+  line-height: 1.4;
 }
 
 .thread-footer {
-  margin-top: 15px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--border-color);
-  font-size: 12px;
-  color: var(--text-muted);
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px dashed #aaa;
+  font-size: 10px;
+  color: #666;
 }
 
-/* --- 8. UTILITIES & ALERTS --- */
+/* --- 9. REPLIES & UTILS --- */
 .replies-section {
-  margin-top: 15px;
+  margin-top: 10px;
   padding-left: 20px;
-  border-left: 3px solid var(--border-color); /* Standard quote line */
+  border-left: 2px solid #ccc;
 }
 
 .reply {
-  margin-bottom: 15px;
-  padding: 10px 15px;
-  background: var(--bg-body);
-  border-radius: 4px;
-  font-size: 14px;
+  margin-bottom: 5px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid #ccc;
+  font-size: 11px;
 }
 
 #toast-container {
-  position: fixed; 
-  top: 20px; 
-  right: 20px; 
+  position: fixed;
+  top: 10px;
+  right: 10px;
   transform: none;
 }
 
 .toast {
-  background: white;
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  padding: 15px 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid var(--primary-blue);
+  background: #ffffcc; /* System tooltip yellow is allowed for errors/alerts only */
+  border: 1px solid #000;
+  color: #000;
+  padding: 5px 10px;
+  font-size: 11px;
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
   animation: none;
-  border-radius: 4px;
 }
 
-.toast.error { 
-  border-left-color: #dc2626; /* Red */
-  color: #dc2626;
+.toast.error {
+  background: #ffcccc;
+  color: #990000;
+  border-color: #990000;
 }
 
 .loading {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 20px;
+  color: #666;
+  font-style: italic;
+  padding: 10px;
+  background: #eee;
+  border: 1px solid #ccc;
 }
-.loading::after { display: none; } /* Remove scanning laser */
+.loading::after { display: none; }
 
 .hidden { display: none; }
 
-/* Standard Scrollbar */
-::-webkit-scrollbar { width: 10px; background: var(--bg-body); }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border: none; border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+/* Old School Scrollbar */
+::-webkit-scrollbar { width: 16px; background: #f1f1f1; }
+::-webkit-scrollbar-track { border-left: 1px solid #ccc; }
+::-webkit-scrollbar-thumb { 
+  background: #c1c1c1; 
+  border: 2px solid #f1f1f1; /* Creates the visual gap */
+}
+::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
