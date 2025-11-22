@@ -1,312 +1,327 @@
-/* --- 0. SYSTEM VARIABLES (Theme: vBulletin/phpBB Legacy) --- */
+/* --- 0. THEME: MODERN SaaS (Clean Dark Mode) --- */
 :root {
-  /* The "Serious" Palette - Cold & Industrial */
-  --page-bg: #2e353d;          /* Dark slate background outside the forum */
-  --container-bg: #f5f5f5;     /* Main content area */
+  /* Backgrounds - Layered Depth */
+  --bg-app: #0d1117;       /* Very dark charcoal */
+  --bg-panel: #161b22;     /* Card background */
+  --bg-input: #0d1117;     /* Input specific */
   
-  /* The "Table" Look */
-  --header-grad-top: #5c7080;  /* Gradient for category bars */
-  --header-grad-bot: #374a5c;
-  --border-dark: #202936;      /* Hard borders */
-  --border-light: #ffffff;     /* For bevel effects */
+  /* Accents */
+  --accent-color: #58a6ff; /* Soft modern blue */
+  --accent-hover: #79c0ff;
+  --danger: #f85149;
   
-  /* Post Backgrounds (Alternating colors were huge back then) */
-  --post-bg-1: #f0f4f7;        /* Very light steel blue */
-  --post-bg-2: #e1e7ed;        /* Slightly darker steel */
+  /* Borders & Separators */
+  --border-subtle: #30363d;
+  --border-active: #8b949e;
   
   /* Typography */
-  --font-stack: 'Verdana', 'Tahoma', sans-serif; /* The holy grail of old forums */
-  --text-main: #000000;
-  --text-link: #224488;        /* Classic deep blue links */
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
-/* --- 1. GLOBAL RESET --- */
+/* --- 1. BASE LAYOUT --- */
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  padding: 20px;
-  background-color: var(--page-bg);
-  color: var(--text-main);
+  padding: 40px 20px;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
   font-family: var(--font-stack);
-  font-size: 11px; /* Authentic small font size */
-  line-height: 1.4;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased; /* Crisp text */
 }
 
-/* Remove all modern overlays */
+/* Clean up previous effects */
 body::before, body::after { display: none; }
 
 a { 
-  color: var(--text-link); 
-  text-decoration: underline; 
-  cursor: pointer;
+  color: var(--accent-color); 
+  text-decoration: none; 
+  font-weight: 500;
+  transition: color 0.2s ease;
 }
-a:hover { color: #ff0000; } /* Classic hover red */
+a:hover { color: var(--accent-hover); text-decoration: underline; }
 
-/* --- 2. MAIN CONTAINER (The "Table") --- */
+/* --- 2. MAIN CONTAINER (The Card) --- */
 .container {
-  max-width: 950px; /* Wider, rigid width */
+  max-width: 800px;
   margin: 0 auto;
-  background: var(--container-bg);
-  border: 1px solid #000;
-  padding: 6px; /* Inner padding usually mimicked cellspacing */
-  box-shadow: none;
-  border-radius: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px; /* Modern rounded corners */
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  overflow: hidden;
+  padding: 0;
 }
 
 .container::after, .container::before { display: none; }
 
 /* --- 3. HEADER --- */
 .header {
-  background: #e1e7ed;
-  padding: 10px;
-  border: 1px solid var(--border-dark);
-  margin-bottom: 10px;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
   text-align: left;
+  margin: 0;
 }
 
 .header h1 {
-  font-family: 'Trebuchet MS', 'Arial', sans-serif;
-  font-size: 18px;
-  font-weight: bold;
-  color: #000;
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
   margin: 0;
   text-transform: none;
-  letter-spacing: normal;
+  letter-spacing: -0.5px; /* Tighter, modern tracking */
   background: none;
   -webkit-text-fill-color: initial;
   text-shadow: none;
 }
 
 .tagline {
-  font-size: 10px;
-  color: #555;
-  margin-top: 2px;
-  display: block;
-}
-
-/* --- 4. STATUS BAR (The "User CP" Bar) --- */
-.status-banner {
-  background: #d1d7dc;
-  border: 1px solid var(--border-dark);
-  padding: 5px 10px;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 10px;
-  color: #000;
-}
-
-.status-message {
-  font-weight: bold;
-  color: #005500; /* Dark green for active */
-}
-
-.user-id-section {
-  text-align: right;
-  font-size: 10px;
-  color: #444;
-  margin: -5px 0 10px 0;
-  padding-right: 5px;
-}
-.user-id { font-weight: bold; color: #000; }
-
-/* --- 5. SECTION HEADERS (The "Thead" Gradient) --- */
-h2 {
-  display: block;
-  width: 100%;
-  background: linear-gradient(to bottom, var(--header-grad-top), var(--header-grad-bot));
-  color: #fff;
-  font-size: 11px;
-  font-weight: bold;
-  padding: 6px 10px;
-  margin: 0;
-  border: 1px solid var(--border-dark);
-  text-transform: none;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 400;
   letter-spacing: normal;
 }
 
-/* --- 6. FORMS --- */
+/* --- 4. STATUS BAR --- */
+.status-banner {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 32px;
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.status-message {
+  font-weight: 600;
+  color: #3fb950; /* Modern success green */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Add a little status dot */
+.status-message::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.user-id-section {
+  padding: 12px 32px;
+  text-align: right;
+  font-family: 'SF Mono', 'Segoe UI Mono', monospace;
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.user-id { color: var(--accent-color); }
+
+/* --- 5. INPUT AREA --- */
+h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin: 24px 32px 12px;
+  padding: 0;
+  border: none;
+  text-transform: none;
+}
+
 .post-form {
-  background: var(--post-bg-2);
-  border: 1px solid var(--border-dark);
-  border-top: none; /* Connected to H2 */
-  padding: 10px;
-  margin-bottom: 15px;
+  margin: 0 32px 24px;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 textarea {
   width: 100%;
-  background: #fff;
-  border: 1px solid #7c7c7c;
-  /* Inset style for depth */
-  border-top-color: #444;
-  border-left-color: #444;
-  color: #000;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  padding: 4px;
-  min-height: 100px;
-  border-radius: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 16px;
+  min-height: 120px;
+  resize: vertical;
+  transition: all 0.2s ease;
+}
+
+textarea:focus {
+  border-color: var(--accent-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15); /* Focus ring */
 }
 
 .form-footer {
-  margin-top: 8px;
-  padding-top: 0;
+  margin-top: 12px;
+  padding: 0;
   border: none;
   display: flex;
-  justify-content: flex-start;
-  gap: 5px;
+  justify-content: flex-end;
 }
 
-/* --- 7. BUTTONS (Beveled Look) --- */
+/* --- 6. BUTTONS (Pill Shape) --- */
 .btn {
-  background: #e0e0e0;
-  border: 1px solid #888;
-  border-top: 1px solid #fff;
-  border-left: 1px solid #fff;
-  border-right: 1px solid #444;
-  border-bottom: 1px solid #444;
-  color: #000;
-  padding: 2px 10px;
-  font-family: var(--font-stack);
-  font-size: 10px;
-  font-weight: normal;
+  background: var(--accent-color);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 20px; /* Full pill shape */
   cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.2s;
   text-transform: none;
   letter-spacing: normal;
-  border-radius: 0;
 }
 
 .btn::before { display: none; }
 
-.btn:active {
-  /* Pressed state */
-  border-top: 1px solid #444;
-  border-left: 1px solid #444;
-  border-right: 1px solid #fff;
-  border-bottom: 1px solid #fff;
-  background: #ccc;
+.btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(88, 166, 255, 0.2);
 }
 
-.btn:hover { background: #dcdcdc; }
+.btn:active { transform: translateY(0); }
 
-/* --- 8. THREAD LIST (The Grid) --- */
+.btn-secondary {
+  background: var(--border-subtle);
+  color: var(--text-primary);
+  border-color: transparent;
+  margin-right: 10px;
+}
+.btn-secondary:hover {
+  background: #484f58;
+  box-shadow: none;
+}
+
+/* --- 7. THREADS (The Feed) --- */
 .threads-container {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  border: 1px solid var(--border-dark);
-  background: #999; /* Gaps look like borders */
-  padding: 1px;
+  gap: 0;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .thread {
-  /* Alternating background logic usually handled by JS/Server, 
-     here we just set a default light blue */
-  background: var(--post-bg-1);
-  border: none; 
-  padding: 8px 10px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 24px 32px;
   position: relative;
-  transform: none;
-}
-
-/* Fake alternating rows if they were strictly ordered elements */
-.thread:nth-child(even) {
-  background: var(--post-bg-2);
+  transition: background 0.2s ease;
 }
 
 .thread:hover {
-  background: #ffffdd; /* The classic "highlight" pale yellow/white */
+  background: rgba(255,255,255,0.02);
   transform: none;
   box-shadow: none;
-  border: none;
+  border-left: none;
 }
+
+.thread:last-child { border-bottom: none; }
 
 .thread-header {
-  font-size: 10px;
-  color: #444;
-  margin-bottom: 4px;
-  border-bottom: 1px solid #ccc;
-  padding-bottom: 2px;
-  display: block;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
 }
 
-.thread-id { 
-  color: #000; 
-  font-weight: bold; 
-  float: right;
+.thread-id {
+  margin-right: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--border-subtle);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
 }
 
 .thread-content {
-  font-size: 12px;
-  color: #000;
-  line-height: 1.4;
+  font-size: 15px;
+  color: var(--text-primary);
+  line-height: 1.6;
 }
 
 .thread-footer {
-  margin-top: 8px;
-  padding-top: 4px;
-  border-top: 1px dashed #aaa;
-  font-size: 10px;
-  color: #666;
+  margin-top: 16px;
+  padding-top: 0;
+  border: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 15px;
 }
 
-/* --- 9. REPLIES & UTILS --- */
+/* --- 8. MODERN ALERTS --- */
 .replies-section {
-  margin-top: 10px;
-  padding-left: 20px;
-  border-left: 2px solid #ccc;
+  margin-top: 16px;
+  padding-left: 16px;
+  border-left: 2px solid var(--border-subtle);
 }
 
 .reply {
-  margin-bottom: 5px;
-  padding: 5px;
-  background: #fff;
-  border: 1px solid #ccc;
-  font-size: 11px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--bg-app);
+  border-radius: 8px;
+  font-size: 14px;
+  border: 1px solid var(--border-subtle);
 }
 
 #toast-container {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  transform: none;
+  position: fixed; bottom: 30px; right: 30px; top: auto;
+  display: flex; flex-direction: column; gap: 10px;
 }
 
 .toast {
-  background: #ffffcc; /* System tooltip yellow is allowed for errors/alerts only */
-  border: 1px solid #000;
-  color: #000;
-  padding: 5px 10px;
-  font-size: 11px;
-  box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
-  animation: none;
+  background: #1f6feb; /* Toast Blue */
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.toast.error {
-  background: #ffcccc;
-  color: #990000;
-  border-color: #990000;
+.toast.error { background: var(--danger); }
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 .loading {
-  color: #666;
-  font-style: italic;
-  padding: 10px;
-  background: #eee;
-  border: 1px solid #ccc;
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 32px;
+  font-size: 13px;
 }
 .loading::after { display: none; }
 
 .hidden { display: none; }
 
-/* Old School Scrollbar */
-::-webkit-scrollbar { width: 16px; background: #f1f1f1; }
-::-webkit-scrollbar-track { border-left: 1px solid #ccc; }
-::-webkit-scrollbar-thumb { 
-  background: #c1c1c1; 
-  border: 2px solid #f1f1f1; /* Creates the visual gap */
-}
-::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+/* Smooth Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-app); }
+::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
