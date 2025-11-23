@@ -1,4 +1,4 @@
-/* --- 0. THEME: MODERN SaaS (Clean Dark Mode) --- */
+/* --- 0. THEME: MODERN SaaS (Clean Dark Mode) + TYPE V ACCESSIBILITY --- */
 :root {
   /* Backgrounds - Layered Depth */
   --bg-app: #0d1117;       /* Very dark charcoal */
@@ -18,10 +18,34 @@
   --text-primary: #c9d1d9;
   --text-secondary: #8b949e;
   --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  
+  /* Focus Ring (Type V Accessibility) */
+  --focus-ring: 3px solid var(--accent-color);
+  --focus-ring-offset: 2px;
+}
+
+/* --- LIGHT MODE SUPPORT (prefers-color-scheme) --- */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-app: #ffffff;
+    --bg-panel: #f8f9fa;
+    --bg-input: #ffffff;
+    --border-subtle: #e1e4e8;
+    --border-active: #6f42c1;
+    --text-primary: #24292e;
+    --text-secondary: #6a737d;
+    --accent-color: #0366d6;
+    --accent-hover: #0256c7;
+    --danger: #d73a49;
+  }
 }
 
 /* --- 1. BASE LAYOUT --- */
 * { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+}
 
 body {
   margin: 0;
@@ -30,11 +54,39 @@ body {
   color: var(--text-primary);
   font-family: var(--font-stack);
   line-height: 1.6;
-  -webkit-font-smoothing: antialiased; /* Crisp text */
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Clean up previous effects */
-body::before, body::after { display: none; }
+/* Respect user motion preferences (Type V Accessibility) */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Skip to main content link (visually hidden, keyboard accessible) */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent-color);
+  color: #fff;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 100;
+  border-radius: 0 0 4px 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.skip-link:focus {
+  top: 0;
+}
 
 a { 
   color: var(--accent-color); 
@@ -42,7 +94,22 @@ a {
   font-weight: 500;
   transition: color 0.2s ease;
 }
-a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+a:hover { 
+  color: var(--accent-hover); 
+  text-decoration: underline; 
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  a {
+    text-decoration: underline;
+  }
+  
+  .btn {
+    border: 2px solid currentColor;
+  }
+}
 
 /* --- 2. MAIN CONTAINER (The Card) --- */
 .container {
@@ -50,13 +117,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   margin: 0 auto;
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
-  border-radius: 12px; /* Modern rounded corners */
+  border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.2);
   overflow: hidden;
   padding: 0;
 }
-
-.container::after, .container::before { display: none; }
 
 /* --- 3. HEADER --- */
 .header {
@@ -70,13 +135,10 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .header h1 {
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-primary);
   margin: 0;
   text-transform: none;
-  letter-spacing: -0.5px; /* Tighter, modern tracking */
-  background: none;
-  -webkit-text-fill-color: initial;
-  text-shadow: none;
+  letter-spacing: -0.5px;
 }
 
 .tagline {
@@ -102,12 +164,12 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .status-message {
   font-weight: 600;
-  color: #3fb950; /* Modern success green */
+  color: #3fb950;
   display: flex;
   align-items: center;
   gap: 6px;
 }
-/* Add a little status dot */
+
 .status-message::before {
   content: "";
   display: block;
@@ -115,6 +177,18 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   height: 8px;
   border-radius: 50%;
   background-color: currentColor;
+  animation: statusPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-message::before {
+    animation: none;
+  }
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .user-id-section {
@@ -126,19 +200,28 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   margin: 0;
   border-bottom: 1px solid var(--border-subtle);
 }
-.user-id { color: var(--accent-color); }
 
-/* --- 5. INPUT AREA --- */
+.user-id { 
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+/* --- 5. MAIN CONTENT --- */
+main {
+  padding: 0;
+}
+
 h2 {
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-primary);
   margin: 24px 32px 12px;
   padding: 0;
   border: none;
   text-transform: none;
 }
 
+/* --- 6. FORM SECTION --- */
 .post-form {
   margin: 0 32px 24px;
   background: transparent;
@@ -146,12 +229,25 @@ h2 {
   padding: 0;
 }
 
+/* Visually hidden label (accessible to screen readers) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 textarea {
   width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  color: #fff;
+  color: var(--text-primary);
   font-family: inherit;
   font-size: 14px;
   padding: 16px;
@@ -160,10 +256,22 @@ textarea {
   transition: all 0.2s ease;
 }
 
+/* Focus states (Type V Accessibility) */
 textarea:focus {
   border-color: var(--accent-color);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15); /* Focus ring */
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+textarea:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  textarea:focus {
+    box-shadow: none;
+  }
 }
 
 .form-footer {
@@ -171,26 +279,48 @@ textarea:focus {
   padding: 0;
   border: none;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-/* --- 6. BUTTONS (Pill Shape) --- */
+.char-counter {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* --- 7. BUTTONS (Pill Shape, 44px minimum) --- */
 .btn {
   background: var(--accent-color);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #fff;
-  padding: 8px 20px;
+  padding: 10px 20px;
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 20px; /* Full pill shape */
+  border-radius: 20px;
   cursor: pointer;
   transition: transform 0.1s ease, opacity 0.2s;
   text-transform: none;
   letter-spacing: normal;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn::before { display: none; }
+/* Focus state for buttons (Type V Accessibility) */
+.btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+}
+
+.btn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
 
 .btn:hover {
   opacity: 0.9;
@@ -198,7 +328,23 @@ textarea:focus {
   box-shadow: 0 4px 12px rgba(88, 166, 255, 0.2);
 }
 
-.btn:active { transform: translateY(0); }
+.btn:active {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:hover,
+  .btn:active {
+    transform: none;
+  }
+}
+
+/* High contrast button support */
+@media (prefers-contrast: more) {
+  .btn {
+    border-width: 2px;
+  }
+}
 
 .btn-secondary {
   background: var(--border-subtle);
@@ -206,12 +352,29 @@ textarea:focus {
   border-color: transparent;
   margin-right: 10px;
 }
+
 .btn-secondary:hover {
   background: #484f58;
   box-shadow: none;
 }
 
-/* --- 7. THREADS (The Feed) --- */
+/* --- 8. ERROR & STATUS MESSAGES --- */
+.error-message,
+.disabled-message {
+  margin-top: 12px;
+  font-size: 13px;
+  min-height: 20px;
+}
+
+.error-message {
+  color: var(--danger);
+}
+
+.disabled-message {
+  color: var(--text-secondary);
+}
+
+/* --- 9. THREADS (The Feed) --- */
 .threads-container {
   display: flex;
   flex-direction: column;
@@ -225,39 +388,50 @@ textarea:focus {
   padding: 24px 32px;
   position: relative;
   transition: background 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+}
+
+.thread:focus-within {
+  outline-color: var(--border-active);
+  background: rgba(88, 166, 255, 0.05);
 }
 
 .thread:hover {
-  background: rgba(255,255,255,0.02);
-  transform: none;
-  box-shadow: none;
-  border-left: none;
+  background: rgba(255, 255, 255, 0.02);
 }
 
-.thread:last-child { border-bottom: none; }
+.thread:last-child { 
+  border-bottom: none; 
+}
 
 .thread-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: 8px;
+  gap: 8px;
 }
 
 .thread-id {
-  margin-right: 12px;
+  margin-right: 0;
   font-weight: 500;
   color: var(--text-primary);
   background: var(--border-subtle);
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   font-size: 11px;
+  font-family: 'SF Mono', 'Segoe UI Mono', monospace;
 }
 
 .thread-content {
   font-size: 15px;
   color: var(--text-primary);
   line-height: 1.6;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .thread-footer {
@@ -268,9 +442,10 @@ textarea:focus {
   color: var(--text-secondary);
   display: flex;
   gap: 15px;
+  flex-wrap: wrap;
 }
 
-/* --- 8. MODERN ALERTS --- */
+/* --- 10. REPLIES SECTION --- */
 .replies-section {
   margin-top: 16px;
   padding-left: 16px;
@@ -284,44 +459,131 @@ textarea:focus {
   border-radius: 8px;
   font-size: 14px;
   border: 1px solid var(--border-subtle);
+  outline: 2px solid transparent;
+  outline-offset: -2px;
 }
 
+.reply:focus-within {
+  outline-color: var(--border-active);
+}
+
+/* --- 11. TOAST NOTIFICATIONS --- */
 #toast-container {
-  position: fixed; bottom: 30px; right: 30px; top: auto;
-  display: flex; flex-direction: column; gap: 10px;
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
 }
 
 .toast {
-  background: #1f6feb; /* Toast Blue */
+  background: #1f6feb;
   color: #fff;
   padding: 12px 24px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   font-size: 13px;
   font-weight: 500;
   border: none;
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
-.toast.error { background: var(--danger); }
+.toast.error { 
+  background: var(--danger); 
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from { 
+    transform: translateY(20px); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateY(0); 
+    opacity: 1; 
+  }
 }
 
+/* --- 12. LOADING & EMPTY STATES --- */
 .loading {
   text-align: center;
   color: var(--text-secondary);
   padding: 32px;
   font-size: 13px;
 }
-.loading::after { display: none; }
 
-.hidden { display: none; }
+.empty-state {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 32px;
+  font-size: 13px;
+}
 
-/* Smooth Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-app); }
-::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+.hidden { 
+  display: none; 
+}
+
+/* --- 13. SMOOTH SCROLLBAR --- */
+::-webkit-scrollbar { 
+  width: 8px; 
+  height: 8px; 
+}
+
+::-webkit-scrollbar-track { 
+  background: var(--bg-app); 
+}
+
+::-webkit-scrollbar-thumb { 
+  background: var(--border-subtle); 
+  border-radius: 4px; 
+}
+
+::-webkit-scrollbar-thumb:hover { 
+  background: var(--text-secondary); 
+}
+
+/* --- 14. RESPONSIVE DESIGN --- */
+@media (max-width: 600px) {
+  .container {
+    border-radius: 0;
+    margin: 0 -20px;
+    box-shadow: none;
+  }
+  
+  .header,
+  .status-banner,
+  .user-id-section,
+  h2,
+  .post-form,
+  .thread,
+  .reply {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  .form-footer {
+    flex-direction: column-reverse;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+  
+  #toast-container {
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+    max-width: 100%;
+  }
+}
