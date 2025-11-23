@@ -35,78 +35,72 @@
     "name": "textchan",
     "description": "A minimal, weekend-only anonymous textboard/internet forum",
     "url": "https://textchan.space/",
-    "applicationCategory": "CommunicationApplication",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "featureList": [
-      "Anonymous posting",
-      "Weekend-only posting",
-      "Real-time updates",
-      "Minimal design"
-    ]
-  }
-  </script>
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-  <!-- Skip to main content link (keyboard accessible, visually hidden) -->
-  <a href="#main-content" class="skip-link">Skip to main content</a>
+    "applicationCategory": "
+CommunicationApplication",
+"offers": {
+"@type": "Offer",
+"price": "0",
+"priceCurrency": "USD"
+},
+"featureList": [
+"Anonymous posting",
+"Weekend-only posting",
+"Real-time updates",
+"Minimal design"
+]
+}
+</script>
 
-  <div class="container">
-    <header class="header" role="banner">
-      <h1>textchan</h1>
-      <span class="tagline">weekend-only anonymous textboard</span>
-    </header>
-
-    <section class="status-section" aria-label="Status information">
-      <div id="status-banner" class="status-banner" role="status" aria-live="polite" aria-atomic="true">
-        <div class="status-message">Loading status...</div>
-        <div id="countdown" class="countdown" aria-label="Time until next posting window"></div>
-      </div>
-    </section>
-
-    <section class="user-id-section" aria-label="Your anonymous user identifier">
-      <span>Your ID:</span> <span id="user-id" class="user-id" aria-label="Your unique anonymous identifier">generating...</span>
-    </section>
-
-    <main id="main-content">
-      <section class="new-thread-section" aria-labelledby="new-thread-heading">
-        <h2 id="new-thread-heading">Post New Thread</h2>
-        <form id="new-thread-form" class="post-form">
-          <label for="thread-content" class="visually-hidden">Thread content</label>
-          <textarea 
-            id="thread-content" 
-            placeholder="What's on your mind? (max 2000 chars)"
-            maxlength="2000"
-            rows="4"
-            aria-describedby="thread-char-count"
-          ></textarea>
-          <div class="form-footer">
-            <div class="char-counter" aria-live="polite" aria-atomic="true">
-              <span id="thread-char-count">0</span>/2000 characters
-            </div>
-            <button type="submit" class="btn btn-primary" aria-label="Post new thread">Post Thread</button>
-          </div>
-          <div id="thread-error" class="error-message" role="alert" aria-live="assertive" aria-atomic="true"></div>
-          <div id="thread-disabled-message" class="disabled-message" role="status" aria-live="polite"></div>
-        </form>
-      </section>
-
-      <section class="threads-section" aria-labelledby="threads-heading">
-        <h2 id="threads-heading">Threads</h2>
-        <div id="threads-container" class="threads-container" role="feed" aria-label="Thread feed" aria-live="polite">
-          <div class="loading" aria-label="Loading threads">Loading threads...</div>
-        </div>
-        <div id="threads-empty" class="empty-state" style="display: none;" role="status">
-          No threads yet. Be the first to post!
-        </div>
-      </section>
-    </main>
+<link rel="stylesheet" href="/styles.css"> </head> <body> <!-- Skip to main content link (keyboard accessible, visually hidden) --> <a href="#main-content" class="skip-link">Skip to main content</a> <!-- Background particle effect --> <div class="background-particles"></div> <!-- Aurora effect backdrop --> <div class="aurora-backdrop"></div> <div class="container"> <header class="header" role="banner"> <div class="header-glow"></div> <h1>textchan</h1> <span class="tagline">weekend-only anonymous textboard</span> </header>
+<section class="status-section" aria-label="Status information">
+  <div id="status-banner" class="status-banner" role="status" aria-live="polite" aria-atomic="true">
+    <div class="status-message">
+      <span class="status-dot"></span>
+      <span>Loading status...</span>
+    </div>
+    <div id="countdown" class="countdown" aria-label="Time until next posting window"></div>
   </div>
+</section>
 
-  <script src="/app.js"></script>
-</body>
-</html>
+<section class="user-id-section" aria-label="Your anonymous user identifier">
+  <span>Your ID:</span> <span id="user-id" class="user-id" aria-label="Your unique anonymous identifier">generating...</span>
+</section>
+
+<main id="main-content">
+  <section class="new-thread-section" aria-labelledby="new-thread-heading">
+    <h2 id="new-thread-heading">Post New Thread</h2>
+    <form id="new-thread-form" class="post-form">
+      <div class="form-glow"></div>
+      <label for="thread-content" class="visually-hidden">Thread content</label>
+      <textarea 
+        id="thread-content" 
+        placeholder="What's on your mind? (max 2000 chars)"
+        maxlength="2000"
+        rows="4"
+        aria-describedby="thread-char-count"
+      ></textarea>
+      <div class="form-footer">
+        <div class="char-counter" aria-live="polite" aria-atomic="true">
+          <span id="thread-char-count">0</span>/2000 characters
+        </div>
+        <button type="submit" class="btn btn-primary" aria-label="Post new thread">
+          <span class="btn-text">Post Thread</span>
+          <span class="btn-glow"></span>
+        </button>
+      </div>
+      <div id="thread-error" class="error-message" role="alert" aria-live="assertive" aria-atomic="true"></div>
+      <div id="thread-disabled-message" class="disabled-message" role="status" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <section class="threads-section" aria-labelledby="threads-heading">
+    <h2 id="threads-heading">Threads</h2>
+    <div id="threads-container" class="threads-container" role="feed" aria-label="Thread feed" aria-live="polite">
+      <div class="loading" aria-label="Loading threads">Loading threads...</div>
+    </div>
+    <div id="threads-empty" class="empty-state" style="display: none;" role="status">
+      No threads yet. Be the first to post!
+    </div>
+  </section>
+</main>
+</div> <script src="/app.js"></script> </body> </html>
