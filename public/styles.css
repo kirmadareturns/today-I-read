@@ -3,49 +3,52 @@
    ======================================== */
 
 :root {
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #151515;
-  --bg-tertiary: #1e1e1e;
-  --bg-input: #0a0a0a;
+  /* Deep Space Theme - Clean & Professional */
+  --bg-primary: #0a0d1a;      /* Deep space navy */
+  --bg-secondary: #0f1229;    /* Slightly lighter space */
+  --bg-tertiary: #141b2f;     /* Card background */
+  --bg-input: #0a0d1a;        /* Input match */
   
-  --accent: #3b82f6;          /* Clean modern blue */
-  --accent-hover: #2563eb;
-  --accent-light: rgba(59, 130, 246, 0.1);
+  /* Accent - Soft starlight cyan */
+  --accent: #4db8ff;          /* Soft cyan (star light) */
+  --accent-hover: #66c2ff;
+  --accent-light: rgba(77, 184, 255, 0.12);
   
-  --text-primary: #f0f0f0;
-  --text-secondary: #9ca3af;
-  --text-tertiary: #6b7280;
+  /* Text - Clean & Easy */
+  --text-primary: #e0e7ff;    /* Soft lavender-white */
+  --text-secondary: #a5adc9;  /* Muted cosmic */
+  --text-tertiary: #6b7280;   /* Darker cosmic gray */
   
-  --border: #2d2d2d;
-  --border-subtle: #1a1a1a;
-  --danger: #e74c3c;
-  --success: #27ae60;
-}
+  /* Borders & States */
+  --border: #1e2749;
+  --border-subtle: #0f1229;
+  --danger: #ff6b6b;          /* Soft red */
+  --success: #51cf66;         /* Soft green */
   
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', 'Monaco', 'Menlo', monospace;
   
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.25);
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg-primary: #fafaf9;     /* Warm cream */
-    --bg-secondary: #f5f5f4;   /* Slightly darker cream */
-    --bg-tertiary: #ede9fe;    /* Very light warm */
-    --bg-input: #ffffff;       /* Pure white input */
+    --bg-primary: #f8f9fb;
+    --bg-secondary: #f0f3f9;
+    --bg-tertiary: #e8ecf4;
+    --bg-input: #ffffff;
     
-    --accent: #c97a5c;         /* Warm burnt orange */
-    --accent-hover: #b5694f;
-    --accent-light: rgba(201, 122, 92, 0.12);
+    --accent: #0066cc;
+    --accent-hover: #0052a3;
+    --accent-light: rgba(0, 102, 204, 0.1);
     
-    --text-primary: #292524;   /* Dark warm */
-    --text-secondary: #78716c; /* Warm medium */
-    --text-tertiary: #a89f99;  /* Warm light */
+    --text-primary: #1a1f3a;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
     
-    --border: #e7e5e4;
-    --border-subtle: #f5f5f4;
+    --border: #dbe4f0;
+    --border-subtle: #e8ecf4;
     --danger: #dc2626;
     --success: #16a34a;
   }
