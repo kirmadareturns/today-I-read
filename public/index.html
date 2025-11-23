@@ -5,29 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>textchan - weekend anonymous textboard</title>
   
-  <!-- SEO Meta Tags -->
   <meta name="description" content="textchan - a weekend-only anonymous textboard/internet forum. Post only on weekends (Saturday & Sunday UTC).">
   <meta name="keywords" content="imageboard, anonymous, forum, textboard, weekend, community, discussion">
   <meta name="author" content="textchan">
   <meta name="robots" content="index, follow">
   <meta name="language" content="English">
   
-  <!-- Open Graph Tags -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://textchan.space/">
   <meta property="og:title" content="textchan - weekend-only anonymous textboard">
   <meta property="og:description" content="A minimal, text-focused anonymous internet forum. Post only on weekends (Saturday & Sunday UTC).">
   <meta property="og:site_name" content="textchan">
   
-  <!-- Twitter Card Tags -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="textchan - weekend-only anonymous textboard">
   <meta name="twitter:description" content="A minimal, text-focused anonymous internet forum. Post only on weekends (Saturday & Sunday UTC).">
   
-  <!-- Canonical URL -->
   <link rel="canonical" href="https://textchan.space/">
   
-  <!-- Schema.org Structured Data -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -40,87 +35,61 @@
       "@type": "Offer",
       "price": "0",
       "priceCurrency": "USD"
-    },
-    "featureList": [
-      "Anonymous posting",
-      "Weekend-only posting",
-      "Real-time updates",
-      "Minimal design"
-    ]
+    }
   }
   </script>
+  
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <!-- Skip to main content link -->
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
-  <div class="wrapper">
-    <header class="header" role="banner">
-      <div class="header-inner">
-        <h1 class="site-title">textchan</h1>
-        <p class="site-tagline">weekend-only anonymous textboard</p>
-      </div>
-    </header>
+  <header class="header">
+    <div class="header-content">
+      <h1>textchan</h1>
+      <p class="tagline">weekend-only anonymous textboard</p>
+    </div>
+  </header>
 
-    <nav class="status-bar" aria-label="Forum status">
-      <div id="status-banner" class="status-info" role="status" aria-live="polite" aria-atomic="true">
-        <span class="status-dot"></span>
-        <span id="status-text">Loading status...</span>
-      </div>
-      <div id="countdown" class="countdown-timer" aria-label="Time until next posting window"></div>
-    </nav>
-
-    <aside class="sidebar" aria-label="User information">
-      <div class="user-card">
-        <div class="user-card-label">Your Anonymous ID</div>
-        <div class="user-card-id" id="user-id" aria-label="Your unique anonymous identifier">generating...</div>
-      </div>
-    </aside>
-
-    <main id="main-content" class="main-container">
-      <!-- New Thread Section -->
-      <section class="compose-section" aria-labelledby="compose-heading">
-        <h2 id="compose-heading" class="section-title">Start New Thread</h2>
-        <form id="new-thread-form" class="compose-form">
-          <label for="thread-content" class="visually-hidden">Compose thread</label>
-          <textarea 
-            id="thread-content" 
-            class="compose-textarea"
-            placeholder="What's on your mind? (max 2000 chars)"
-            maxlength="2000"
-            rows="5"
-            aria-describedby="thread-char-count"
-          ></textarea>
-          
-          <div class="compose-footer">
-            <div class="char-info">
-              <span id="thread-char-count">0</span><span class="char-separator">/</span><span>2000</span>
-            </div>
-            <button type="submit" class="btn btn-primary" aria-label="Post new thread">
-              Post Thread
-            </button>
-          </div>
-          
-          <div id="thread-error" class="message message-error" role="alert" aria-live="assertive"></div>
-          <div id="thread-disabled-message" class="message message-info" role="status" aria-live="polite"></div>
-        </form>
-      </section>
-
-      <!-- Threads Listing (Forum View) -->
-      <section class="threads-section" aria-labelledby="threads-heading">
-        <h2 id="threads-heading" class="section-title">Threads</h2>
-        
-        <div id="threads-container" class="threads-list" role="feed" aria-label="Thread feed" aria-live="polite">
-          <div class="threads-loading" aria-label="Loading threads">Loading threads...</div>
-        </div>
-        
-        <div id="threads-empty" class="threads-empty" style="display: none;" role="status">
-          <p>No threads yet. Be the first to post!</p>
-        </div>
-      </section>
-    </main>
+  <div id="status-banner" class="status-banner" role="status" aria-live="polite" aria-atomic="true">
+    <div class="status-message">Loading status...</div>
+    <div id="countdown" class="countdown"></div>
   </div>
+
+  <section class="user-info-section">
+    <div class="user-info">
+      <span class="user-label">Your ID:</span>
+      <span id="user-id" class="user-id">generating...</span>
+    </div>
+  </section>
+
+  <main id="main-content" class="container">
+    <section class="compose-section">
+      <h2>Start a New Thread</h2>
+      <form id="new-thread-form" class="compose-form">
+        <textarea 
+          id="thread-content" 
+          placeholder="What's on your mind? (max 2000 chars)"
+          maxlength="2000"
+          rows="5"
+        ></textarea>
+        <div class="form-actions">
+          <span class="char-info"><span id="thread-char-count">0</span>/2000</span>
+          <button type="submit" class="btn btn-primary">Post Thread</button>
+        </div>
+        <div id="thread-error" class="error-message"></div>
+        <div id="thread-disabled-message" class="disabled-message"></div>
+      </form>
+    </section>
+
+    <section class="threads-section">
+      <h2>Recent Threads</h2>
+      <div id="threads-container" class="threads-container"></div>
+      <div id="threads-empty" class="empty-state" style="display: none;">
+        <p>No threads yet. Be the first to post one!</p>
+      </div>
+    </section>
+  </main>
 
   <script src="/app.js"></script>
 </body>
