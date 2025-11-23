@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>textchan - weekend anonymous textboard</title>
-    <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <!-- SEO Meta Tags -->
   <meta name="description" content="textchan - a weekend-only anonymous textboard/internet forum. Post only on weekends (Saturday & Sunday UTC).">
@@ -54,52 +52,59 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <!-- Skip to main content link (keyboard accessible, visually hidden) -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
   <div class="container">
-    <header class="header">
+    <header class="header" role="banner">
       <h1>textchan</h1>
       <span class="tagline">weekend-only anonymous textboard</span>
     </header>
 
-    <section class="status-section">
-      <div id="status-banner" class="status-banner">
+    <section class="status-section" aria-label="Status information">
+      <div id="status-banner" class="status-banner" role="status" aria-live="polite" aria-atomic="true">
         <div class="status-message">Loading status...</div>
-        <div id="countdown" class="countdown"></div>
+        <div id="countdown" class="countdown" aria-label="Time until next posting window"></div>
       </div>
     </section>
 
-    <section class="user-id-section">
-      Your ID: <span id="user-id" class="user-id">generating...</span>
+    <section class="user-id-section" aria-label="Your anonymous user identifier">
+      <span>Your ID:</span> <span id="user-id" class="user-id" aria-label="Your unique anonymous identifier">generating...</span>
     </section>
 
-    <section class="new-thread-section">
-      <h2>Post New Thread</h2>
-      <form id="new-thread-form" class="post-form">
-        <textarea 
-          id="thread-content" 
-          placeholder="What's on your mind? (max 2000 chars)"
-          maxlength="2000"
-          rows="4"
-        ></textarea>
-        <div class="form-footer">
-          <div class="char-counter">
-            <span id="thread-char-count">0</span>/2000
+    <main id="main-content">
+      <section class="new-thread-section" aria-labelledby="new-thread-heading">
+        <h2 id="new-thread-heading">Post New Thread</h2>
+        <form id="new-thread-form" class="post-form">
+          <label for="thread-content" class="visually-hidden">Thread content</label>
+          <textarea 
+            id="thread-content" 
+            placeholder="What's on your mind? (max 2000 chars)"
+            maxlength="2000"
+            rows="4"
+            aria-describedby="thread-char-count"
+          ></textarea>
+          <div class="form-footer">
+            <div class="char-counter" aria-live="polite" aria-atomic="true">
+              <span id="thread-char-count">0</span>/2000 characters
+            </div>
+            <button type="submit" class="btn btn-primary" aria-label="Post new thread">Post Thread</button>
           </div>
-          <button type="submit" class="btn btn-primary">Post Thread</button>
-        </div>
-        <div id="thread-error" class="error-message"></div>
-        <div id="thread-disabled-message" class="disabled-message"></div>
-      </form>
-    </section>
+          <div id="thread-error" class="error-message" role="alert" aria-live="assertive" aria-atomic="true"></div>
+          <div id="thread-disabled-message" class="disabled-message" role="status" aria-live="polite"></div>
+        </form>
+      </section>
 
-    <section class="threads-section">
-      <h2>Threads</h2>
-      <div id="threads-container" class="threads-container">
-        <div class="loading">Loading threads...</div>
-      </div>
-      <div id="threads-empty" class="empty-state" style="display: none;">
-        No threads yet. Be the first to post!
-      </div>
-    </section>
+      <section class="threads-section" aria-labelledby="threads-heading">
+        <h2 id="threads-heading">Threads</h2>
+        <div id="threads-container" class="threads-container" role="feed" aria-label="Thread feed" aria-live="polite">
+          <div class="loading" aria-label="Loading threads">Loading threads...</div>
+        </div>
+        <div id="threads-empty" class="empty-state" style="display: none;" role="status">
+          No threads yet. Be the first to post!
+        </div>
+      </section>
+    </main>
   </div>
 
   <script src="/app.js"></script>
