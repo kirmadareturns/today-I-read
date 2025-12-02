@@ -92,5 +92,21 @@
   </main>
 
   <script src="/app.js"></script>
+  <script>
+/* ---- terminal toggle ---- */
+const toggle = document.getElementById('term-toggle');
+const body   = document.body;
+
+// restore last choice
+const saved = localStorage.getItem('tx-term');
+if(saved) body.setAttribute('data-term', saved);
+
+toggle.addEventListener('click', () => {
+  const current = body.getAttribute('data-term') || 'dark';
+  const next    = current === 'dark' ? 'light' : 'dark';
+  body.setAttribute('data-term', next);
+  localStorage.setItem('tx-term', next);
+});
+</script>
 </body>
 </html>
