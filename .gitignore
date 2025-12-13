@@ -12,3 +12,5 @@ yarn-error.log*
 server.log
 preview.log
 ui-preview.html
+test_*.js
+test_*.md

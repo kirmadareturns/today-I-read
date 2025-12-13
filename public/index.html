@@ -94,19 +94,29 @@
   <script src="/app.js"></script>
   <script>
 /* ---- terminal toggle ---- */
+const body = document.body;
+
+// restore last choice - with fallback for private mode
+try {
+  const saved = localStorage.getItem('tx-term');
+  if(saved) body.setAttribute('data-term', saved);
+} catch (e) {
+  console.warn('localStorage unavailable (private mode?), theme toggle disabled');
+}
+
 const toggle = document.getElementById('term-toggle');
-const body   = document.body;
-
-// restore last choice
-const saved = localStorage.getItem('tx-term');
-if(saved) body.setAttribute('data-term', saved);
-
-toggle.addEventListener('click', () => {
-  const current = body.getAttribute('data-term') || 'dark';
-  const next    = current === 'dark' ? 'light' : 'dark';
-  body.setAttribute('data-term', next);
-  localStorage.setItem('tx-term', next);
-});
+if (toggle) {
+  toggle.addEventListener('click', () => {
+    const current = body.getAttribute('data-term') || 'dark';
+    const next    = current === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-term', next);
+    try {
+      localStorage.setItem('tx-term', next);
+    } catch (e) {
+      console.warn('Could not save theme preference');
+    }
+  });
+}
 </script>
 </body>
 </html>

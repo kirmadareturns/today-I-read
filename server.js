@@ -64,6 +64,8 @@ app.get('/api/status', async (req, res) => {
   res.json({
     postingEnabled: isWeekend(),
     nextChangeTimestamp: getNextChangeTimestamp(),
+    timezone: 'UTC',
+    currentTimestamp: new Date().toISOString(),
     storage: storageStatus,
   });
 });

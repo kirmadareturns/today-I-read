@@ -83,7 +83,7 @@ async function createThread(body, userId, createdAt) {
     body,
     userId,
     createdAt,
-    replies: []
+    replyCount: 0
   };
 }
 
@@ -93,21 +93,14 @@ async function getAllThreads() {
     const threadsData = threadsSnapshot.val() || {};
     
     const threads = Object.entries(threadsData).map(([threadId, thread]) => {
-      const threadReplies = (thread.replies && Object.entries(thread.replies).map(([replyId, reply]) => ({
-        id: replyId,
-        body: reply.body,
-        userId: reply.userId,
-        createdAt: reply.createdAt
-      }))) || [];
-      
-      threadReplies.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      const replyCount = (thread.replies && Object.keys(thread.replies).length) || 0;
       
       return {
         id: threadId,
         body: thread.body,
         userId: thread.userId,
         createdAt: thread.createdAt,
-        replies: threadReplies
+        replyCount
       };
     });
     
@@ -196,23 +189,27 @@ function setupThreadListener(callback) {
   const query = db.ref('threads').orderByChild('createdAt').limitToLast(50);
   
   query.on('child_added', snapshot => {
+    const threadData = snapshot.val();
+    const replyCount = (threadData.replies && Object.keys(threadData.replies).length) || 0;
     const thread = {
       id: snapshot.key,
-      body: snapshot.val().body,
-      userId: snapshot.val().userId,
-      createdAt: snapshot.val().createdAt,
-      replies: []
+      body: threadData.body,
+      userId: threadData.userId,
+      createdAt: threadData.createdAt,
+      replyCount
     };
     callback('added', thread);
   });
   
   query.on('child_modified', snapshot => {
+    const threadData = snapshot.val();
+    const replyCount = (threadData.replies && Object.keys(threadData.replies).length) || 0;
     const thread = {
       id: snapshot.key,
-      body: snapshot.val().body,
-      userId: snapshot.val().userId,
-      createdAt: snapshot.val().createdAt,
-      replies: []
+      body: threadData.body,
+      userId: threadData.userId,
+      createdAt: threadData.createdAt,
+      replyCount
     };
     callback('modified', thread);
   });
