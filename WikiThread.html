@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WikiFractal | Stable Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&family=Inter:wght@400;500&display=swap');
+
+        :root {
+            --bg: #050508;
+            --card-bg: #121217;
+            --border: #27272a;
+            --accent: #3b82f6;
+            --text: #e2e8f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body { 
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* Default for Desktop */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* --- DESKTOP VIEWPORT --- */
+        #viewport {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            cursor: grab;
+            position: relative;
+            touch-action: none; /* Prevents browser bounce on Desktop drag */
+        }
+        #viewport.panning { cursor: grabbing; }
+
+        #world {
+            position: absolute;
+            display: flex;
+            padding: 50vh 50vw; /* Start center-ish */
+            transform-origin: 0 0;
+            will-change: transform;
+            backface-visibility: hidden;
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+
+        /* --- TREE LAYOUT (DESKTOP) --- */
+        .node-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 80px;
+            position: relative;
+        }
+
+        .children-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            position: relative;
+        }
+
+        /* Connectors - Enhanced visibility */
+        .children-stack::before {
+            content: ''; position: absolute;
+            left: -80px; top: 50%; width: 80px; height: 3px;
+            background: linear-gradient(90deg, #52525b, #3b82f6);
+            transform: translateY(-1.5px);
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+        .children-stack:hover::before {
+            background: linear-gradient(90deg, #71717a, #60a5fa);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+            height: 4px;
+        }
+        .children-stack::after {
+            content: ''; position: absolute;
+            left: -80px; top: 0; bottom: 0; width: 3px;
+            background: #52525b;
+            box-shadow: 0 0 6px rgba(59, 130, 246, 0.2);
+            transition: all 0.3s ease;
+        }
+        .children-stack:hover::after {
+            background: #71717a;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+            width: 4px;
+        }
+        /* Hide vertical line for single child or first/last adjustments */
+        .children-stack > .node-wrapper:only-child::after { display: none; }
+        
+        /* Masking lines for first/last child to create rounded tree look */
+        .children-stack > .node-wrapper:first-child::after {
+            content: ''; position: absolute; left: -80px; top: -50px; bottom: 50%; width: 5px; background: var(--bg); z-index: 1;
+        }
+        .children-stack > .node-wrapper:last-child::after {
+            content: ''; position: absolute; left: -80px; top: 50%; bottom: -50px; width: 5px; background: var(--bg); z-index: 1;
+        }
+
+
+        /* --- CARD UI --- */
+        .card {
+            width: 450px;
+            height: 600px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: #52525b; }
+
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,0.02); border-radius: 16px 16px 0 0;
+        }
+
+        .card-title {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.1rem; color: #fff;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 350px;
+        }
+
+        .card-body {
+            flex: 1; overflow-y: auto; padding: 24px;
+            font-size: 1rem; line-height: 1.6; color: #d1d5db;
+            scroll-behavior: smooth;
+            overscroll-behavior: contain;
+            /* Enhanced performance for desktop */
+            -webkit-overflow-scrolling: auto;
+            will-change: scroll-position;
+            transform: translate3d(0,0,0);
+        }
+        /* Scrollbar */
+        .card-body::-webkit-scrollbar { width: 8px; }
+        .card-body::-webkit-scrollbar-thumb { 
+            background: #3f3f46; 
+            border-radius: 4px; 
+            transition: background 0.2s;
+        }
+        .card-body::-webkit-scrollbar-thumb:hover { 
+            background: #52525b; 
+        }
+        .card-body::-webkit-scrollbar-track { background: transparent; }
+
+        /* Typography */
+        .wiki-text h2 { font-family: 'Space Grotesk'; color: #fff; margin: 1.5rem 0 0.5rem; font-size: 1.4rem; }
+        .wiki-text p { margin-bottom: 1rem; max-width: 100%; word-wrap: break-word; }
+        .wiki-text a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(59,130,246,0.3); word-wrap: break-word; }
+        .wiki-text a:hover { background: rgba(59,130,246,0.1); }
+        .wiki-text ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .wiki-text blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; margin: 1rem 0; color: #cbd5e1; background: rgba(59,130,246,0.05); padding: 1rem; border-radius: 0 8px 8px 0; }
+        .wiki-text pre { background: #1e1e1e; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; border: 1px solid #333; }
+        .wiki-text code { background: #1e1e1e; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; color: #f59e0b; }
+        .wiki-text pre code { background: transparent; padding: 0; color: inherit; }
+
+        /* --- UI ELEMENTS --- */
+        .search-bar {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 100; width: 420px; background: rgba(24,24,27,0.8); backdrop-filter: blur(12px);
+            border: 1px solid var(--border); border-radius: 12px;
+            padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .search-input { background: transparent; border: none; outline: none; color: white; width: 100%; font-size: 0.95rem; }
+        
+        .suggestions {
+            position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+            width: 420px; background: #18181b; border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden; display: none; z-index: 99;
+        }
+        .suggestions.active { display: block; }
+        .s-item { padding: 12px 16px; border-bottom: 1px solid #27272a; cursor: pointer; color: #a1a1aa; display: flex; justify-content: space-between; }
+        .s-item:hover { background: #27272a; color: white; }
+
+        .controls { 
+            position: fixed; bottom: 30px; right: 30px; 
+            display: flex; flex-direction: column; gap: 10px; z-index: 90; 
+        }
+        .btn { 
+            width: 50px; height: 50px; 
+            background: rgba(24,24,27,0.9); 
+            backdrop-filter: blur(12px);
+            border: 2px solid var(--border); 
+            border-radius: 12px; 
+            color: #a1a1aa; 
+            cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; 
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 1.2rem;
+        }
+        .btn:hover { 
+            border-color: var(--accent); 
+            color: white; 
+            background: rgba(39,39,42,0.95); 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59,130,246,0.3);
+        }
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .zoom-level {
+            background: rgba(24,24,27,0.9); 
+            backdrop-filter: blur(12px);
+            border: 2px solid var(--border); 
+            border-radius: 12px;
+            padding: 8px 16px;
+            color: var(--accent);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            text-align: center;
+            min-width: 50px;
+        }
+
+        /* --- MOBILE OVERRIDES --- */
+        @media (max-width: 768px) {
+            body { 
+                overflow-y: auto; /* Enable native scroll */
+                height: auto;
+                -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+                scroll-behavior: smooth;
+                /* Enhanced hardware acceleration for mobile */
+                -webkit-transform: translate3d(0,0,0);
+                -moz-transform: translate3d(0,0,0);
+                -ms-transform: translate3d(0,0,0);
+                transform: translate3d(0,0,0);
+            }
+            #viewport { 
+                position: static; height: auto; overflow: visible; cursor: default; 
+                touch-action: auto; /* Re-enable native gestures */
+            }
+            #world { 
+                position: static; transform: none !important; display: block; 
+                padding: 80px 16px 40px; width: 100%; 
+                /* Enhanced GPU acceleration */
+                will-change: auto;
+                transform-style: flat;
+            }
+            
+            /* Vertical Stack */
+            .node-wrapper { flex-direction: column; gap: 20px; margin-bottom: 20px; align-items: stretch; }
+            .children-stack { 
+                padding-left: 16px; 
+                border-left: 3px solid #52525b; 
+                gap: 20px; 
+                margin-left: 10px; 
+            }
+            .children-stack::before, .children-stack::after, 
+            .children-stack > .node-wrapper:first-child::after,
+            .children-stack > .node-wrapper:last-child::after { display: none; }
+
+            /* Mobile Card */
+            .card { 
+                width: 100%; 
+                height: auto; 
+                max-height: none; 
+                border-radius: 12px;
+                /* Hardware acceleration for mobile animations */
+                -webkit-transform: translate3d(0,0,0);
+                transform: translate3d(0,0,0);
+            }
+            .card-header { padding: 14px; }
+            .card-body { 
+                padding: 16px; 
+                /* Enhanced mobile scroll performance */
+                -webkit-overflow-scrolling: touch;
+                scroll-behavior: smooth;
+                overscroll-behavior: contain;
+            }
+
+            /* Mobile UI */
+            .search-bar { width: calc(100% - 32px); top: 16px; }
+            .suggestions { width: calc(100% - 32px); }
+            .controls { display: none; }
+        }
+
+        .spinner { border: 2px solid #333; border-top-color: var(--accent); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="search-bar">
+        <i class="ri-search-line text-gray-500"></i>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search Wikipedia..." autocomplete="off">
+        <div id="loader" class="spinner" style="opacity: 0;"></div>
+    </div>
+    <div id="suggestions" class="suggestions"></div>
+
+    <div class="controls">
+        <button class="btn" onclick="zoomIn()" title="Zoom In (Ctrl/Cmd +)"><i class="ri-zoom-in-line"></i></button>
+        <div class="zoom-level" id="zoomLevel">1.0x</div>
+        <button class="btn" onclick="zoomOut()" title="Zoom Out (Ctrl/Cmd -)"><i class="ri-zoom-out-line"></i></button>
+        <button class="btn" onclick="resetView()" title="Reset View"><i class="ri-focus-2-line"></i></button>
+    </div>
+
+
+    <div id="viewport">
+        <div id="world"></div>
+    </div>
+
+    <script>
+        // --- State ---
+        const state = {
+            isMobile: window.innerWidth <= 768,
+            scale: 1,
+            x: 0, y: 0,
+            isDragging: false,
+            startX: 0, startY: 0,
+            velocityX: 0, velocityY: 0,
+            lastDragTime: 0,
+            lastDragX: 0, lastDragY: 0,
+            isMomentumAnimating: false,
+            currentController: null // For AbortController
+        };
+
+        const dom = {
+            viewport: document.getElementById('viewport'),
+            world: document.getElementById('world'),
+            input: document.getElementById('searchInput'),
+            suggestions: document.getElementById('suggestions'),
+            loader: document.getElementById('loader'),
+            zoomLevel: document.getElementById('zoomLevel')
+        };
+
+        const API = 'https://en.wikipedia.org/w/api.php?origin=*';
+
+        // --- Layout Engine ---
+        function checkDevice() {
+            const wasMobile = state.isMobile;
+            state.isMobile = window.innerWidth <= 768;
+
+            if (state.isMobile !== wasMobile) {
+                if (state.isMobile) {
+                    // Switch to Mobile: Reset ALL transform state, allow native scroll
+                    state.scale = 1;
+                    state.x = 0;
+                    state.y = 0;
+                    dom.world.style.transform = '';
+                    dom.viewport.style.cursor = 'default';
+                    dom.viewport.style.touchAction = 'auto';
+                    dom.world.style.touchAction = 'auto';
+                } else {
+                    // Switch to Desktop: Center view, enable pan/zoom
+                    resetView();
+                    dom.viewport.style.cursor = 'grab';
+                    dom.viewport.style.touchAction = 'none';
+                    dom.world.style.touchAction = 'none';
+                }
+            }
+        }
+        window.addEventListener('resize', checkDevice);
+        
+        function updateTransform() {
+            if (state.isMobile) return;
+            // Use sub-pixel rendering for ultra-smooth transforms
+            dom.world.style.transform = `translate3d(${state.x.toFixed(2)}px, ${state.y.toFixed(2)}px, 0) scale(${state.scale.toFixed(3)})`;
+            if (dom.zoomLevel) {
+                dom.zoomLevel.textContent = `${state.scale.toFixed(1)}x`;
+            }
+        }
+
+        // --- Desktop Interactions ---
+        dom.viewport.addEventListener('mousedown', (e) => {
+            if (state.isMobile) return;
+            // Don't drag if clicking UI or inside card text
+            if (e.target.closest('.card-body') || e.target.closest('.search-bar') || e.target.closest('.btn')) return;
+
+            state.isDragging = true;
+            state.startX = e.clientX - state.x;
+            state.startY = e.clientY - state.y;
+            state.lastDragTime = Date.now();
+            state.lastDragX = state.x;
+            state.lastDragY = state.y;
+            state.velocityX = 0;
+            state.velocityY = 0;
+            
+            // Cancel any ongoing momentum animation
+            gsap.killTweensOf(state);
+            state.isMomentumAnimating = false;
+            
+            dom.viewport.classList.add('panning');
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!state.isDragging) return;
+            state.isDragging = false;
+            dom.viewport.classList.remove('panning');
+            
+            // Start momentum animation if velocity is significant
+            if (Math.abs(state.velocityX) > 0.1 || Math.abs(state.velocityY) > 0.1) {
+                startMomentumAnimation();
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!state.isDragging || state.isMobile) return;
+            e.preventDefault();
+            
+            const currentX = e.clientX - state.startX;
+            const currentY = e.clientY - state.startY;
+            
+            // Calculate velocity for momentum
+            const currentTime = Date.now();
+            const timeDelta = currentTime - state.lastDragTime;
+            
+            if (timeDelta > 0) {
+                const deltaX = currentX - state.lastDragX;
+                const deltaY = currentY - state.lastDragY;
+                
+                // Calculate velocity (pixels per millisecond)
+                state.velocityX = deltaX / timeDelta;
+                state.velocityY = deltaY / timeDelta;
+            }
+            
+            state.x = currentX;
+            state.y = currentY;
+            state.lastDragX = currentX;
+            state.lastDragY = currentY;
+            state.lastDragTime = currentTime;
+            
+            updateTransform();
+        });
+
+        // Momentum animation with smooth deceleration
+        function startMomentumAnimation() {
+            state.isMomentumAnimating = true;
+            
+            const momentumX = state.velocityX * 150; // Scale velocity
+            const momentumY = state.velocityY * 150;
+            const duration = Math.max(0.5, Math.min(1.2, Math.abs(momentumX + momentumY) / 200));
+            
+            gsap.to(state, {
+                x: state.x + momentumX,
+                y: state.y + momentumY,
+                duration: duration,
+                ease: "power2.out",
+                onUpdate: updateTransform,
+                onComplete: () => {
+                    state.isMomentumAnimating = false;
+                }
+            });
+        }
+
+        dom.viewport.addEventListener('wheel', (e) => {
+            if (state.isMobile) return; // Allow native mobile scroll
+
+            const isCtrl = e.ctrlKey || e.metaKey;
+            const isOverCard = e.target.closest('.card-body');
+
+            // 1. ZOOM (Ctrl+Wheel OR Pinch on Trackpad)
+            if (isCtrl) {
+                e.preventDefault();
+                
+                // Cancel any ongoing animations for smooth transitions
+                gsap.killTweensOf(state);
+                
+                const delta = e.deltaY * -0.001; // Reduced for more granular control
+                const currentScale = state.scale;
+                const newScale = Math.min(Math.max(0.3, currentScale + delta), 2.5);
+                
+                // Zoom towards mouse position
+                const rect = dom.viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                const worldX = (mouseX - state.x) / currentScale;
+                const worldY = (mouseY - state.y) / currentScale;
+
+                // Ultra-smooth zoom animation with enhanced GSAP
+                gsap.to(state, {
+                    scale: newScale,
+                    x: mouseX - worldX * newScale,
+                    y: mouseY - worldY * newScale,
+                    duration: 0.1, // Reduced for more responsive feel
+                    ease: "power2.out",
+                    onUpdate: updateTransform
+                });
+                return;
+            }
+
+            // 2. SCROLL CARD (If hovering text, let browser handle it)
+            if (isOverCard) return;
+
+            // 3. PAN MAP (If hovering background) - Enhanced smooth panning
+            e.preventDefault();
+            
+            // Cancel any ongoing momentum animation for smooth transitions
+            gsap.killTweensOf(state);
+            
+            const deltaX = e.deltaX * 1.5; // Enhanced momentum factor
+            const deltaY = e.deltaY * 1.5;
+            
+            gsap.to(state, {
+                x: state.x - deltaX,
+                y: state.y - deltaY,
+                duration: 0.25, // Slightly faster for better responsiveness
+                ease: "power2.out",
+                onUpdate: updateTransform
+            });
+        }, { passive: false });
+
+
+        // --- Wikipedia Logic ---
+        async function fetchSuggestions(query) {
+            if (query.length < 2) return [];
+            
+            // Cancel previous request
+            if (state.currentController) {
+                state.currentController.abort();
+            }
+            state.currentController = new AbortController();
+            
+            try {
+                const res = await fetch(`${API}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, {
+                    signal: state.currentController.signal
+                });
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                
+                const data = await res.json();
+                return data[1].map((t, i) => ({ title: t, desc: data[2][i] }));
+            } catch (error) {
+                if (error.name === 'AbortError') return [];
+                console.warn('Failed to fetch suggestions:', error);
+                return [];
+            } finally {
+                state.currentController = null;
+            }
+        }
+
+        async function fetchPage(title) {
+            try {
+                const res = await fetch(`${API}&action=parse&page=${encodeURIComponent(title)}&format=json&prop=text|displaytitle&redirects=1&disableeditsection=1`);
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                
+                const data = await res.json();
+                if (data.error) {
+                    throw new Error(data.error.info || 'Wikipedia API Error');
+                }
+                
+                if (!data.parse || !data.parse.text || !data.parse.text['*']) {
+                    throw new Error('Invalid response format');
+                }
+                
+                return { title: data.parse.displaytitle || title, html: data.parse.text['*'] };
+            } catch (error) {
+                console.warn(`Failed to fetch page "${title}":`, error);
+                return { error: error.message };
+            }
+        }
+
+        function createNode(title, parentStack = null) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'node-wrapper';
+
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="card-title">${title}</div>
+                    <i class="ri-close-line" style="cursor:pointer; opacity:0.6;" onclick="removeNode(this)"></i>
+                </div>
+                <div class="card-body">
+                    <div style="display:flex; justify-content:center; align-items:center; height:100px; gap:10px; color:#555;">
+                        <div class="spinner"></div> Loading...
+                    </div>
+                </div>
+            `;
+
+            wrapper.appendChild(card);
+
+            if (!parentStack) {
+                dom.world.innerHTML = '';
+                dom.world.appendChild(wrapper);
+                if(!state.isMobile) setTimeout(resetView, 100);
+            } else {
+                parentStack.appendChild(wrapper);
+                if(state.isMobile) {
+                    setTimeout(() => card.scrollIntoView({behavior: 'smooth', block: 'nearest'}), 100);
+                }
+            }
+
+            // Animate
+            gsap.from(card, { opacity:0, y:20, scale:0.95, duration:0.4 });
+
+            fetchPage(title).then(data => {
+                const body = card.querySelector('.card-body');
+                
+                if(!data || data.error) {
+                    const errorMsg = data?.error || 'Unable to load page from Wikipedia';
+                    body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100px;color:#ef4444;gap:10px;">
+                        <i class="ri-error-warning-line" style="font-size:1.5rem;"></i>
+                        <div>${errorMsg}</div>
+                        <div style="font-size:0.8em;color:#888;">Please check your connection and try again</div>
+                    </div>`;
+                    return;
+                }
+                
+                // Clean HTML with improved sanitization to preserve formatting
+                const clean = DOMPurify.sanitize(data.html, {
+                    FORBID_TAGS: ['style','script','iframe','form','meta','link'],
+                    ALLOWED_TAGS: [
+                        'p','br','strong','b','em','i','u','s','a','h1','h2','h3','h4','h5','h6',
+                        'ul','ol','li','blockquote','pre','code','span','div','table','tr','td','th',
+                        'thead','tbody','caption','img','sup','sub'
+                    ],
+                    ALLOWED_ATTR: ['href','src','alt','title','class','id','colspan','rowspan','align'],
+                    FORBID_ATTR: ['onclick','onload','onerror','onmouseover','onfocus','onblur','onchange','onsubmit','onreset']
+                });
+                card.querySelector('.card-title').innerHTML = data.title;
+                body.innerHTML = clean;
+                body.classList.add('wiki-text');
+
+                // Hijack Links
+                body.querySelectorAll('a').forEach(link => {
+                    const href = link.getAttribute('href');
+                    if(href && href.startsWith('/wiki/')) {
+                        const target = href.replace('/wiki/', '').split('#')[0];
+                        if(target.includes(':')) { link.removeAttribute('href'); link.style.opacity = 0.5; return; }
+                        
+                        link.onclick = (e) => {
+                            e.preventDefault();
+                            spawnChild(wrapper, target);
+                        };
+                    } else {
+                        link.target = "_blank";
+                    }
+                });
+            });
+        }
+
+        function spawnChild(parentWrapper, title) {
+            let stack = parentWrapper.querySelector('.children-stack');
+            if(!stack) {
+                stack = document.createElement('div');
+                stack.className = 'children-stack';
+                parentWrapper.appendChild(stack);
+            }
+            createNode(title, stack);
+        }
+
+        function removeNode(icon) {
+            const wrapper = icon.closest('.node-wrapper');
+            const card = wrapper.querySelector('.card');
+            
+            // Disable interaction during animation
+            card.style.pointerEvents = 'none';
+            card.style.opacity = '0.5';
+            
+            gsap.to(wrapper, { 
+                opacity:0, 
+                height:0, 
+                margin:0, 
+                padding:0,
+                duration:0.3, 
+                onComplete: () => wrapper.remove() 
+            });
+        }
+
+        // --- Search ---
+        let debounce;
+        dom.input.addEventListener('input', (e) => {
+            // Clear existing timeout
+            if (debounce) clearTimeout(debounce);
+            
+            const val = e.target.value;
+            if(val.length < 2) { 
+                dom.suggestions.classList.remove('active'); 
+                dom.loader.style.opacity = 0;
+                return; 
+            }
+            
+            dom.loader.style.opacity = 1;
+            debounce = setTimeout(async () => {
+                const results = await fetchSuggestions(val);
+                dom.loader.style.opacity = 0;
+                renderSuggestions(results);
+            }, 300);
+        });
+
+        function renderSuggestions(list) {
+            dom.suggestions.innerHTML = '';
+            
+            if(list.length === 0) {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 16px; text-align: center; color: #888; font-style: italic;';
+                noResults.innerHTML = '<i class="ri-search-line" style="margin-right:8px;"></i>No results found';
+                dom.suggestions.appendChild(noResults);
+            } else {
+                list.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 's-item';
+                    div.innerHTML = `<span>${item.title}</span><span style="font-size:0.8em; opacity:0.5;">${item.desc || ''}</span>`;
+                    div.onclick = () => {
+                        createNode(item.title);
+                        dom.suggestions.classList.remove('active');
+                        dom.input.value = '';
+                    };
+                    dom.suggestions.appendChild(div);
+                });
+            }
+            dom.suggestions.classList.add('active');
+        }
+
+        // --- Controls ---
+        function zoomIn() {
+            if (state.isMobile) return;
+            
+            // Cancel any ongoing animations for smooth transitions
+            gsap.killTweensOf(state);
+            
+            const newScale = Math.min(2.5, state.scale + 0.1); // More granular steps (0.1 vs 0.15)
+            const rect = dom.viewport.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const worldX = (centerX - state.x) / state.scale;
+            const worldY = (centerY - state.y) / state.scale;
+
+            // Ultra-smooth zoom animation with power2.inOut for buttery feel
+            gsap.to(state, {
+                scale: newScale,
+                x: centerX - worldX * newScale,
+                y: centerY - worldY * newScale,
+                duration: 0.2, // Quicker for better responsiveness
+                ease: "power2.inOut",
+                onUpdate: updateTransform
+            });
+        }
+        
+        function zoomOut() {
+            if (state.isMobile) return;
+            
+            // Cancel any ongoing animations for smooth transitions
+            gsap.killTweensOf(state);
+            
+            const newScale = Math.max(0.3, state.scale - 0.1); // More granular steps
+            const rect = dom.viewport.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const worldX = (centerX - state.x) / state.scale;
+            const worldY = (centerY - state.y) / state.scale;
+
+            // Ultra-smooth zoom animation with power2.inOut
+            gsap.to(state, {
+                scale: newScale,
+                x: centerX - worldX * newScale,
+                y: centerY - worldY * newScale,
+                duration: 0.2,
+                ease: "power2.inOut",
+                onUpdate: updateTransform
+            });
+        }
+        
+        function resetView() {
+            if(state.isMobile) return;
+            state.x = (window.innerWidth/2) - 225;
+            state.y = (window.innerHeight/2) - 300;
+            state.scale = 1;
+            gsap.to(state, { 
+                duration: 0.6, 
+                ease: "power2.inOut", 
+                onUpdate: updateTransform 
+            });
+        }
+
+        // --- Keyboard Shortcuts ---
+        window.addEventListener('keydown', (e) => {
+            if (state.isMobile) return;
+            
+            // Cancel any ongoing animations for smooth transitions
+            gsap.killTweensOf(state);
+            
+            // Arrow keys for panning
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+                const panSpeed = e.shiftKey ? 200 : 100; // Faster with Shift
+                const duration = 0.2;
+                const ease = "power2.out";
+                
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        gsap.to(state, {
+                            x: state.x + panSpeed,
+                            duration,
+                            ease,
+                            onUpdate: updateTransform
+                        });
+                        break;
+                    case 'ArrowRight':
+                        gsap.to(state, {
+                            x: state.x - panSpeed,
+                            duration,
+                            ease,
+                            onUpdate: updateTransform
+                        });
+                        break;
+                    case 'ArrowUp':
+                        gsap.to(state, {
+                            y: state.y + panSpeed,
+                            duration,
+                            ease,
+                            onUpdate: updateTransform
+                        });
+                        break;
+                    case 'ArrowDown':
+                        gsap.to(state, {
+                            y: state.y - panSpeed,
+                            duration,
+                            ease,
+                            onUpdate: updateTransform
+                        });
+                        break;
+                }
+                return;
+            }
+            
+            // Ctrl/Cmd + Plus/Equal for Zoom In
+            if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
+                e.preventDefault();
+                zoomIn();
+            }
+            
+            // Ctrl/Cmd + Minus for Zoom Out
+            if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+                e.preventDefault();
+                zoomOut();
+            }
+            
+            // Ctrl/Cmd + 0 for Reset View
+            if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+                e.preventDefault();
+                resetView();
+            }
+        });
+
+        // Init
+        function init() {
+            checkDevice();
+            createNode("Internet");
+            
+            // Force re-render of connector lines after initial load
+            if(!state.isMobile) {
+                setTimeout(() => {
+                    // Force reflow by adding and removing a class
+                    const world = document.getElementById('world');
+                    world.style.display = 'none';
+                    world.offsetHeight; // Trigger reflow
+                    world.style.display = '';
+                }, 100);
+            }
+        }
+        
+        init();
+
+    </script>
+</body>
+</html>
