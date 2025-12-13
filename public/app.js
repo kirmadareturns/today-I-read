@@ -1,10 +1,13 @@
 class TextchanApp {
   constructor() {
+    this.inMemoryUserId = null;
     this.userId = this.getOrCreateUserId();
     this.status = null;
     this.threads = [];
     this.countdownInterval = null;
     this.statusInterval = null;
+    this.openThreads = new Set();
+    this.loadingThreads = new Set();
     
     // Initialize UX Components
     this.initToastContainer();
@@ -40,12 +43,20 @@ class TextchanApp {
   }
 
   getOrCreateUserId() {
-    let userId = localStorage.getItem('textchan_user_id');
-    if (!userId) {
-      userId = this.generateUserId();
-      localStorage.setItem('textchan_user_id', userId);
+    try {
+      let userId = localStorage.getItem('textchan_user_id');
+      if (!userId) {
+        userId = this.generateUserId();
+        localStorage.setItem('textchan_user_id', userId);
+      }
+      return userId;
+    } catch (error) {
+      console.warn('localStorage unavailable (private mode?), using in-memory user ID:', error);
+      if (!this.inMemoryUserId) {
+        this.inMemoryUserId = this.generateUserId();
+      }
+      return this.inMemoryUserId;
     }
-    return userId;
   }
 
   generateUserId() {
@@ -133,6 +144,9 @@ class TextchanApp {
   async fetchStatus() {
     try {
       const response = await fetch('/api/status');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch status`);
+      }
       const data = await response.json();
       this.status = data;
       this.updateStatusUI();
@@ -222,6 +236,15 @@ class TextchanApp {
     statusMessage.textContent = 'Reconnecting...';
   }
 
+  showThreadsError(message) {
+    const container = document.getElementById('threads-container');
+    const emptyState = document.getElementById('threads-empty');
+    
+    emptyState.style.display = 'block';
+    emptyState.innerHTML = `<p style="color: var(--error);">${this.escapeHtml(message)}</p>`;
+    container.innerHTML = '';
+  }
+
   startCountdown() {
     if (this.countdownInterval) clearInterval(this.countdownInterval);
     this.updateCountdown();
@@ -300,13 +323,19 @@ class TextchanApp {
   async fetchThreads() {
     try {
       const response = await fetch('/api/threads');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch threads`);
+      }
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid threads data received');
+      }
       this.threads = data;
       this.sortThreads();
       this.renderThreads();
     } catch (error) {
       console.error('Failed to fetch threads:', error);
-      this.showToast('Failed to load threads', 'error');
+      this.showThreadsError('Failed to load threads. Retrying...');
     }
   }
 
@@ -330,11 +359,20 @@ class TextchanApp {
       }
     });
 
+    // Restore open reply sections
+    this.openThreads.forEach(threadId => {
+      const repliesSection = document.getElementById(`replies-${threadId}`);
+      if (repliesSection && !this.loadingThreads.has(threadId)) {
+        this.loadAndRenderReplies(threadId);
+      }
+    });
+
     this.setupReadMoreButtons();
   }
 
   renderThread(thread) {
-    const replyCount = thread.replies.length;
+    const replyCount = thread.replyCount || 0;
+    const isOpen = this.openThreads.has(thread.id);
     const lines = thread.body.split('\n');
     const needsTruncation = lines.length > 3;
     
@@ -352,6 +390,9 @@ class TextchanApp {
       contentHtml = `<div class="thread-content">${this.escapeHtml(thread.body)}</div>`;
     }
     
+    const repliesSectionClass = isOpen ? '' : 'hidden';
+    const toggleButtonText = isOpen ? '[Hide Replies]' : '[Show Replies]';
+    
     // Note: The 'thread' class in CSS handles the slide-up animation automatically
     return `
       <div class="thread" data-thread-id="${thread.id}">
@@ -363,9 +404,9 @@ class TextchanApp {
         ${contentHtml}
         <div class="thread-footer">
           <span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>
-          <button id="toggle-${thread.id}" class="btn btn-secondary">[Show Replies]</button>
+          <button id="toggle-${thread.id}" class="btn btn-secondary">${toggleButtonText}</button>
         </div>
-        <div id="replies-${thread.id}" class="replies-section hidden"></div>
+        <div id="replies-${thread.id}" class="replies-section ${repliesSectionClass}"></div>
       </div>
     `;
   }
@@ -375,28 +416,55 @@ class TextchanApp {
     const toggleBtn = document.getElementById(`toggle-${threadId}`);
 
     if (repliesSection.classList.contains('hidden')) {
+      this.openThreads.add(threadId);
+      await this.loadAndRenderReplies(threadId);
+    } else {
+      this.openThreads.delete(threadId);
+      repliesSection.classList.add('hidden');
+      if (toggleBtn) {
+        toggleBtn.textContent = '[Show Replies]';
+      }
+    }
+  }
+
+  async loadAndRenderReplies(threadId) {
+    const repliesSection = document.getElementById(`replies-${threadId}`);
+    const toggleBtn = document.getElementById(`toggle-${threadId}`);
+
+    if (!repliesSection) return;
+
+    this.loadingThreads.add(threadId);
+    if (toggleBtn) {
       toggleBtn.textContent = 'Loading...';
       toggleBtn.disabled = true;
+    }
+    
+    try {
+      const response = await fetch(`/api/threads/${threadId}/replies`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch replies`);
+      }
+      const data = await response.json();
       
-      try {
-        const response = await fetch(`/api/threads/${threadId}/replies`);
-        const data = await response.json();
-        
-        repliesSection.innerHTML = this.renderRepliesSection(threadId, data.replies);
-        repliesSection.classList.remove('hidden');
+      repliesSection.innerHTML = this.renderRepliesSection(threadId, data.replies);
+      repliesSection.classList.remove('hidden');
+      if (toggleBtn) {
         toggleBtn.textContent = '[Hide Replies]';
         toggleBtn.disabled = false;
+      }
 
-        this.setupReplyForm(threadId);
-        this.setupReadMoreButtons();
-      } catch (error) {
-        this.showToast('Failed to fetch replies', 'error');
+      this.setupReplyForm(threadId);
+      this.setupReadMoreButtons();
+    } catch (error) {
+      console.error('Failed to fetch replies:', error);
+      this.showToast('Failed to fetch replies', 'error');
+      this.openThreads.delete(threadId);
+      if (toggleBtn) {
         toggleBtn.textContent = '[Show Replies]';
         toggleBtn.disabled = false;
       }
-    } else {
-      repliesSection.classList.add('hidden');
-      toggleBtn.textContent = '[Show Replies]';
+    } finally {
+      this.loadingThreads.delete(threadId);
     }
   }
 
@@ -583,8 +651,7 @@ class TextchanApp {
         textarea.style.height = 'auto';
         form.querySelector('.reply-char-count').textContent = '0';
         this.showToast('Reply posted!');
-        await this.toggleReplies(threadId); // Refresh replies
-        await this.toggleReplies(threadId);
+        await this.refreshReplies(threadId);
       }
     } catch (error) {
       this.showToast('Network error.', 'error');
@@ -592,6 +659,13 @@ class TextchanApp {
         button.disabled = false;
         button.textContent = originalText;
     }
+  }
+
+  async refreshReplies(threadId) {
+    if (!this.openThreads.has(threadId)) {
+      this.openThreads.add(threadId);
+    }
+    await this.loadAndRenderReplies(threadId);
   }
 
   formatTimestamp(timestamp) {

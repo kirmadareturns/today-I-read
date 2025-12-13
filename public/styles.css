@@ -274,6 +274,11 @@ textarea:focus {
   font-size: 0.85rem;
   margin-top: 0.5rem;
   min-height: 1.2em;
+  display: none;
+}
+
+.error-message.visible {
+  display: block;
 }
 
 .disabled-message {
@@ -283,6 +288,11 @@ textarea:focus {
   color: var(--text-dim);
   text-align: center;
   font-style: italic;
+  display: none;
+}
+
+.disabled-message.visible {
+  display: block;
 }
 
 .empty-state {
