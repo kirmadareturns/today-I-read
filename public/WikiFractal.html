@@ -145,6 +145,9 @@
             -webkit-overflow-scrolling: auto;
             will-change: scroll-position;
             transform: translate3d(0,0,0);
+            will-change: transform; /* Helps browser prepare for movement */
+    backface-visibility: hidden; /* Reduces 3D jitter */
+    transform: translateZ(0); /* Forces GPU acceleration */
         }
         /* Scrollbar */
         .card-body::-webkit-scrollbar { width: 8px; }
@@ -370,15 +373,19 @@
         }
         window.addEventListener('resize', checkDevice);
         
-        function updateTransform() {
-            if (state.isMobile) return;
-            // Use sub-pixel rendering for ultra-smooth transforms
-            dom.world.style.transform = `translate3d(${state.x.toFixed(2)}px, ${state.y.toFixed(2)}px, 0) scale(${state.scale.toFixed(3)})`;
-            if (dom.zoomLevel) {
-                dom.zoomLevel.textContent = `${state.scale.toFixed(1)}x`;
-            }
-        }
-
+      function updateTransform() {
+    if (state.isMobile) return;
+    
+    // THE FIX: rounding x and y prevents sub-pixel blurring
+    const roundedX = Math.round(state.x);
+    const roundedY = Math.round(state.y);
+    
+    dom.world.style.transform = `translate3d(${roundedX}px, ${roundedY}px, 0) scale(${state.scale})`;
+    
+    if (dom.zoomLevel) {
+        dom.zoomLevel.textContent = `${state.scale.toFixed(1)}x`;
+    }
+}
         // --- Desktop Interactions ---
         dom.viewport.addEventListener('mousedown', (e) => {
             if (state.isMobile) return;
