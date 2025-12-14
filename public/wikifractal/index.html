@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WikiFractal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&family=Inter:wght@400;500&display=swap');
+        
+        body {
+            background-color: #050508;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent native scrolling on body */
+            touch-action: none; /* Prevent browser gestures */
+        }
+
+        /* Custom Scrollbar for Cards */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: #3f3f46; 
+            border-radius: 3px; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+
+        /* Typography overrides for Wiki Content */
+        .wiki-content h2 { font-family: 'Space Grotesk'; color: #fff; margin: 1.2rem 0 0.5rem; font-size: 1.3rem; font-weight: 600; }
+        .wiki-content h3 { font-family: 'Space Grotesk'; color: #e2e8f0; margin: 1rem 0 0.4rem; font-size: 1.1rem; font-weight: 600; }
+        .wiki-content p { margin-bottom: 0.8rem; line-height: 1.6; }
+        .wiki-content a { color: #3b82f6; text-decoration: none; border-bottom: 1px solid rgba(59,130,246,0.3); }
+        .wiki-content ul, .wiki-content ol { margin-left: 1.5rem; margin-bottom: 1rem; list-style: disc; }
+        .wiki-content blockquote { border-left: 3px solid #3b82f6; padding-left: 1rem; margin: 1rem 0; color: #cbd5e1; background: rgba(59,130,246,0.05); padding: 0.8rem; border-radius: 0 8px 8px 0; }
+        .wiki-content .thumb { display: none; } /* Hide heavy images/captions by default for cleaner UI */
+        .wiki-content table { display: block; overflow-x: auto; margin: 1rem 0; border-collapse: collapse; }
+        .wiki-content th, .wiki-content td { border: 1px solid #333; padding: 8px; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "gsap": "https://esm.sh/gsap@^3.14.2",
+    "uuid": "https://esm.sh/uuid@^13.0.0",
+    "dompurify": "https://esm.sh/dompurify@^3.3.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
