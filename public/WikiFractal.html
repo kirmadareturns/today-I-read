@@ -231,7 +231,7 @@
 
     <div class="search-bar">
         <i class="ri-search-line text-gray-500"></i>
-        <input type="text" id="searchInput" class="search-input" placeholder="Search Wikipedia..." autocomplete="off">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search..." autocomplete="off">
         <div id="loader" class="spinner" style="opacity: 0;"></div>
     </div>
     <div id="suggestions" class="suggestions"></div>
@@ -280,7 +280,6 @@
 
         function checkDevice() {
             state.isMobile = window.innerWidth <= 768;
-            // Redraw all connectors on resize
             document.querySelectorAll('.children-stack').forEach(updateStackConnectors);
         }
         window.addEventListener('resize', checkDevice);
@@ -429,31 +428,25 @@
             state.currentController = new AbortController();
             
             try {
-                // Fetch BOTH APIs in parallel
+                // Query both APIs
                 const [wikiRes, dictRes] = await Promise.all([
-                    fetch(`${APIS.wikipedia}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, { signal: state.currentController.signal }),
-                    fetch(`${APIS.wiktionary}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, { signal: state.currentController.signal })
+                    fetch(`${APIS.wikipedia}&action=opensearch&search=${encodeURIComponent(query)}&limit=4&format=json`, { signal: state.currentController.signal }),
+                    fetch(`${APIS.wiktionary}&action=opensearch&search=${encodeURIComponent(query)}&limit=4&format=json`, { signal: state.currentController.signal })
                 ]);
 
                 const wikiData = await wikiRes.json();
                 const dictData = await dictRes.json();
                 
                 const results = [];
-                // Process Wiki
-                if (wikiData[1]) {
-                    wikiData[1].forEach((t, i) => results.push({ title: t, desc: wikiData[2][i], source: 'wikipedia' }));
-                }
-                // Process Dict
-                if (dictData[1]) {
-                    dictData[1].forEach((t, i) => results.push({ title: t, desc: dictData[2][i], source: 'wiktionary' }));
-                }
+                // Merge without explicit visual badges in the list (keeps look clean)
+                if (wikiData[1]) wikiData[1].forEach((t, i) => results.push({ title: t, desc: wikiData[2][i], source: 'wikipedia' }));
+                if (dictData[1]) dictData[1].forEach((t, i) => results.push({ title: t, desc: dictData[2][i], source: 'wiktionary' }));
                 
                 return results;
             } catch (error) { return []; }
         }
 
         async function fetchPage(title, source) {
-            // Select correct API based on source parameter
             const apiBase = APIS[source] || APIS.wikipedia; 
             try {
                 const res = await fetch(`${apiBase}&action=parse&page=${encodeURIComponent(title)}&format=json&prop=text|displaytitle&redirects=1&disableeditsection=1`);
@@ -467,33 +460,26 @@
 
         function updateStackConnectors(stack) {
             if (!stack) return;
-            
             const isMobile = window.innerWidth <= 768;
-            const gap = isMobile ? 30 : 60; // Matches CSS .node-wrapper gap
+            const gap = isMobile ? 30 : 60; 
             const cardHeight = isMobile ? 450 : 550;
             const cardHalf = cardHeight / 2;
             
-            // Get or create SVG container
             let svg = stack.querySelector('.connector-svg');
             if (!svg) {
                 svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                 svg.setAttribute('class', 'connector-svg');
                 stack.prepend(svg);
             }
-            
             svg.innerHTML = '';
             
             const children = Array.from(stack.children).filter(c => c.classList.contains('node-wrapper'));
             if (children.length === 0) return;
 
-            // Geometry: 
-            // Parent Exit: x = -gap, y = cardHalf (relative to stack top-left)
-            // Child Entry: x = 0, y = child.offsetTop + cardHalf
-            
             const startX = -gap;
             const startY = cardHalf; 
-            const startThick = 8; // Trunk thickness
-            const endThick = 2;   // Tip thickness
+            const startThick = 8; 
+            const endThick = 2;   
             
             children.forEach(child => {
                 const childY = child.offsetTop;
@@ -504,16 +490,12 @@
                 path.setAttribute('class', 'connector-path');
                 path.setAttribute('fill', 'currentColor');
                 
-                // Organic Curve Shape (Filled Path for tapering)
-                // We create a closed loop shape that represents the "muscle" or "branch"
                 const dist = Math.abs(endX - startX);
-                const cp1x = startX + (dist * 0.6); // Control points extend horizontally
+                const cp1x = startX + (dist * 0.6);
                 const cp1y = startY;
                 const cp2x = endX - (dist * 0.6);
                 const cp2y = endY;
                 
-                // Top curve (Parent Top -> Child Top)
-                // Bottom curve (Child Bottom -> Parent Bottom)
                 const d = [
                     `M ${startX} ${startY - startThick/2}`,
                     `C ${cp1x} ${cp1y - startThick/2}, ${cp2x} ${cp2y - endThick/2}, ${endX} ${endY - endThick/2}`,
@@ -532,17 +514,13 @@
         function highlightPath(element, active) {
             let current = element;
             while(current && current.id !== 'world') {
-                if(current.classList.contains('node-wrapper')) {
-                    active ? current.classList.add('path-active') : current.classList.remove('path-active');
-                }
-                if(current.classList.contains('children-stack')) {
+                if(current.classList.contains('node-wrapper') || current.classList.contains('children-stack')) {
                     active ? current.classList.add('path-active') : current.classList.remove('path-active');
                 }
                 current = current.parentElement;
             }
         }
 
-        // Modified createNode to accept and handle 'source'
         function createNode(title, parentStack = null, source = 'wikipedia') {
             state.nodeCount++;
             const wrapper = document.createElement('div');
@@ -550,7 +528,7 @@
 
             const card = document.createElement('div');
             card.className = 'card';
-            // Store source for logic, but don't style off it
+            // Invisible data attribute for logic
             card.setAttribute('data-source', source);
 
             card.innerHTML = `
@@ -578,7 +556,6 @@
                 setTimeout(resetView, 100);
             } else {
                 parentStack.appendChild(wrapper);
-                // Update lines for this stack
                 updateStackConnectors(parentStack);
             }
 
@@ -601,17 +578,47 @@
 
                 body.querySelectorAll('a').forEach(link => {
                     const href = link.getAttribute('href');
-                    if(href && href.startsWith('/wiki/')) {
-                        const target = href.replace('/wiki/', '').split('#')[0];
-                        if(target.includes(':')) { 
-                            link.style.opacity = 0.5; link.removeAttribute('href'); return; 
+                    if (!href) return;
+
+                    let targetTitle = null;
+                    let targetSource = null;
+
+                    // 1. Internal Link (Relative) -> Inherit current source
+                    if (href.startsWith('/wiki/')) {
+                        targetTitle = href.replace('/wiki/', '').split('#')[0];
+                        targetSource = source; 
+                    }
+                    // 2. Full Wikipedia URL -> Force Wikipedia source
+                    else if (href.includes('wikipedia.org/wiki/')) {
+                        const parts = href.split('wikipedia.org/wiki/');
+                        if (parts[1]) {
+                            targetTitle = parts[1].split('#')[0];
+                            targetSource = 'wikipedia';
                         }
+                    }
+                    // 3. Full Wiktionary URL -> Force Wiktionary source
+                    else if (href.includes('wiktionary.org/wiki/')) {
+                        const parts = href.split('wiktionary.org/wiki/');
+                        if (parts[1]) {
+                            targetTitle = parts[1].split('#')[0];
+                            targetSource = 'wiktionary';
+                        }
+                    }
+
+                    if (targetTitle && targetSource) {
+                        // Filter out Meta pages (File:, Special:, Category:, etc)
+                        if (targetTitle.includes(':')) {
+                            link.style.opacity = 0.5;
+                            link.removeAttribute('href');
+                            return;
+                        }
+
                         link.onclick = (e) => {
                             e.preventDefault();
-                            // Pass the 'source' (wiki or wiktionary) to child
-                            spawnChild(wrapper, target, source);
+                            spawnChild(wrapper, decodeURIComponent(targetTitle), targetSource);
                         };
                     } else {
+                        // External link
                         link.target = "_blank";
                         link.innerHTML += ' <i class="ri-external-link-line" style="font-size:0.8em"></i>';
                     }
@@ -627,7 +634,7 @@
                 parentWrapper.appendChild(stack);
             }
             
-            // Check for existing node (including source check to avoid duplicates)
+            // Check for existing node of SAME source
             const existing = Array.from(stack.children)
                 .filter(el => el.classList.contains('node-wrapper'))
                 .find(wrapper => {
@@ -643,7 +650,6 @@
             }
 
             createNode(title, stack, source);
-            // Connectors updated inside createNode
         }
 
         function removeNode(icon) {
@@ -656,12 +662,10 @@
                 marginBottom: 0,
                 duration: 0.3, 
                 onUpdate: () => {
-                   // Keep lines connected during collapse
                    if(stack && stack.classList.contains('children-stack')) updateStackConnectors(stack);
                 },
                 onComplete: () => {
                     wrapper.remove();
-                    
                     if(stack && stack.classList.contains('children-stack')) {
                         const remainingNodes = Array.from(stack.children).filter(c => c.classList.contains('node-wrapper'));
                         if(remainingNodes.length === 0) {
@@ -674,7 +678,7 @@
             });
         }
 
-        // --- Search & UI ---
+        // --- Search Logic ---
         let debounce;
         dom.input.addEventListener('input', (e) => {
             if (debounce) clearTimeout(debounce);
@@ -700,14 +704,11 @@
             list.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 's-item';
-                // Using exact original structure, but showing source in description if useful,
-                // or just standard description.
                 div.innerHTML = `
                     <div style="font-weight:500; color:#e2e8f0">${item.title}</div>
                     <div style="font-size:0.85em; opacity:0.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;">${item.desc || (item.source === 'wiktionary' ? 'Definition' : 'Article')}</div>
                 `;
                 div.onclick = () => {
-                    // Pass the item's source
                     createNode(item.title, null, item.source);
                     dom.suggestions.classList.remove('active');
                     dom.input.value = '';
