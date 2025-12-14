@@ -18,6 +18,9 @@
             --border: #27272a;
             --accent: #3b82f6;
             --text: #e2e8f0;
+            --line-color: #3f3f46;
+            --line-active: #3b82f6;
+            --line-width: 2px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -31,7 +34,7 @@
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            touch-action: none; /* Prevent browser gestures globally */
+            touch-action: none;
         }
 
         #viewport {
@@ -41,13 +44,16 @@
             cursor: grab;
             position: relative;
             touch-action: none;
+            background-image: radial-gradient(circle at 1px 1px, #1c1c1f 1px, transparent 0);
+            background-size: 40px 40px;
         }
         #viewport.panning { cursor: grabbing; }
 
         #world {
             position: absolute;
             display: flex;
-            padding: 50vh 50vw;
+            align-items: center; /* Center root initially */
+            padding: 0;
             transform-origin: 0 0;
             will-change: transform;
             backface-visibility: hidden;
@@ -55,125 +61,273 @@
             transform-style: preserve-3d;
         }
 
-        /* --- TREE LAYOUT --- */
+        /* --- TREE LAYOUT ENGINE --- */
+        
+        /* The Wrapper contains the Card and the Container for its Children */
         .node-wrapper {
             display: flex;
-            align-items: center;
-            gap: 80px;
+            align-items: flex-start; /* Align to top to allow clean branching */
+            gap: 60px; /* Horizontal space between generations */
             position: relative;
+            margin-bottom: 20px; /* Vertical buffering */
         }
-
-        .children-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 40px;
-            position: relative;
-        }
-
-        /* Connectors */
-        .children-stack::before {
-            content: ''; position: absolute;
-            left: -80px; top: 50%; width: 80px; height: 3px;
-            background: linear-gradient(90deg, #52525b, #3b82f6);
-            transform: translateY(-1.5px);
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
-            transition: all 0.3s ease;
-        }
-        .children-stack:hover::before {
-            background: linear-gradient(90deg, #71717a, #60a5fa);
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
-            height: 4px;
-        }
-        .children-stack::after {
-            content: ''; position: absolute;
-            left: -80px; top: 0; bottom: 0; width: 3px;
-            background: #52525b;
-            box-shadow: 0 0 6px rgba(59, 130, 246, 0.2);
-            transition: all 0.3s ease;
-        }
-        .children-stack:hover::after {
-            background: #71717a;
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
-            width: 4px;
-        }
-        .children-stack > .node-wrapper:only-child::after { display: none; }
         
-        /* Masking lines */
-        .children-stack > .node-wrapper:first-child::after {
-            content: ''; position: absolute; left: -80px; top: -50px; bottom: 50%; width: 5px; background: var(--bg); z-index: 1;
-        }
-        .children-stack > .node-wrapper:last-child::after {
-            content: ''; position: absolute; left: -80px; top: 50%; bottom: -50px; width: 5px; background: var(--bg); z-index: 1;
+        /* Optimization: skip rendering offscreen content logic handled by browser mostly, 
+           but we ensure layout containment */
+        .node-wrapper {
+            contain: layout style;
         }
 
-        /* --- CARD UI --- */
+        /* The Card Element */
         .card {
-            width: 450px;
-            height: 600px;
+            width: 400px;
+            height: 550px;
             background: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 12px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
             position: relative;
             z-index: 10;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.5); /* Reduced shadow for perf */
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+        }
+        
+        .card:hover {
+            border-color: #52525b;
+            box-shadow: 0 20px 40px -5px rgba(0,0,0,0.7);
+            z-index: 20;
+        }
+        
+        /* Active Path Styling (added via JS) */
+        .card.path-active {
+            border-color: var(--line-active);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+        }
+
+        /* The Stack that holds the children nodes */
+        .children-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            padding-left: 0;
+            justify-content: center; /* Center children relative to parent input */
+        }
+
+        /* --- CONNECTORS (The fix for "Clear Relationships") --- */
+
+        /* 1. Horizontal line from Child Card to its Parent's Bus */
+        /* We use ::before on the node-wrapper to draw the line entering the card */
+        .children-stack > .node-wrapper::before {
+            content: '';
+            position: absolute;
+            left: -60px; /* Spans the gap */
+            top: 275px; /* Half of card height (550/2) */
+            width: 60px;
+            height: var(--line-width);
+            background: var(--line-color);
+            transition: background-color 0.2s;
+            pointer-events: none;
+        }
+        /* Mobile adjustment for line top position handled in media query */
+
+        /* 2. Vertical Bus Line on the Children Stack */
+        /* We use a pseudo-element on the stack to draw the vertical line connecting all siblings */
+        .children-stack::after {
+            content: '';
+            position: absolute;
+            left: -60px; /* Align with the start of the horizontal connectors */
+            top: 0;
+            bottom: 0;
+            width: var(--line-width);
+            background: var(--line-color);
+            transition: background-color 0.2s;
+            pointer-events: none;
+            /* Logic to position the vertical line correctly between first and last child is done via masking below */
+        }
+
+        /* 3. Horizontal line from Parent Card to the Stack */
+        /* This is actually the "exit" line of the parent, but in this DOM structure, 
+           it's easier to think of it as the input to the stack.
+           However, structurally, the vertical bus IS the input. 
+           We just need to mask the top and bottom of the bus so it doesn't extend past the children.
+        */
+
+        /* MASKING: Hide the vertical bus extending beyond the first and last child centers */
+        .children-stack > .node-wrapper:first-child::after {
+            content: '';
+            position: absolute;
+            left: -64px; /* Cover the bus width + wiggle room */
+            top: -50px; /* Go way up */
+            height: 325px; /* 275 (half card) + 50 buffer */
+            width: 10px;
+            background: var(--bg); /* Match background to "erase" line */
+            pointer-events: none;
+        }
+        
+        .children-stack > .node-wrapper:last-child > .mask-bottom {
+             /* We use a dedicated span for bottom mask to avoid pseudo-element conflict if needed, 
+                but let's try a simpler approach without extra DOM first. 
+                Actually, using a gradient on the bus is cleaner than masking.
+             */
+        }
+        
+        /* ALTERNATIVE CLEANER LINES STRATEGY: 
+           Instead of one big bus, let's give each child a "turn" bracket.
+        */
+        .children-stack::after { display: none; } /* Disable global bus */
+        .children-stack::before { display: none; }
+
+        /* New Connector Logic: Brackets */
+        .children-stack > .node-wrapper .connector {
+            position: absolute;
+            left: -60px;
+            top: 0;
+            bottom: 0;
+            width: 60px;
+            pointer-events: none;
+        }
+
+        /* Horizontal rung */
+        .children-stack > .node-wrapper .connector::before {
+            content: ''; position: absolute;
+            right: 0; top: 275px; width: 30px; height: var(--line-width);
+            background: var(--line-color);
+            transition: background 0.2s;
+        }
+
+        /* Vertical segment connecting to sibling/parent */
+        .children-stack > .node-wrapper .connector::after {
+            content: ''; position: absolute;
+            right: 30px; /* Connects to horizontal rung */
+            width: var(--line-width);
+            background: var(--line-color);
+            transition: background 0.2s;
+        }
+
+        /* Logic for vertical segments height */
+        /* If I am not the first child, I need a line going UP */
+        /* If I am not the last child, I need a line going DOWN */
+        /* Actually, simpler: The parent connects to the MIDDLE of the stack. 
+           So we need a vertical line spanning from First Child Center to Last Child Center. 
+           And a horizontal line from Parent to that vertical line's center. 
+        */
+
+        /* Reverting to the Robust Bus Strategy with JS Dynamic sizing? 
+           No, CSS-only is preferred for performance. 
+           Let's go with: Parent connects to Stack. Stack has border-left. 
+           We mask the border-left to stop at top/bottom centers.
+        */
+        
+        .children-stack {
+            border-left: var(--line-width) solid var(--line-color);
+            padding-left: 30px; /* Space for horizontal rungs */
+            margin-left: 30px; /* Space from parent output */
             transition: border-color 0.2s;
         }
-        .card:hover { border-color: #52525b; }
+        
+        .children-stack.path-active {
+            border-left-color: var(--line-active);
+        }
 
+        /* Parent Output Line */
+        .node-wrapper > .line-out {
+            position: absolute;
+            right: 0; 
+            top: 275px; /* Center of card */
+            width: 30px; /* Meets the stack margin */
+            height: var(--line-width);
+            background: var(--line-color);
+            transform: translateX(100%);
+            transition: background 0.2s;
+        }
+        .node-wrapper.path-active > .line-out {
+            background: var(--line-active);
+        }
+
+        /* Child Input Line (Rung) */
+        .children-stack > .node-wrapper::before {
+            content: ''; position: absolute;
+            left: -30px; /* Connects to stack border */
+            top: 275px; 
+            width: 30px; height: var(--line-width);
+            background: var(--line-color);
+            transition: background 0.2s;
+        }
+        .children-stack > .node-wrapper.path-active::before {
+            background: var(--line-active);
+        }
+
+        /* Masking Top/Bottom of Bus */
+        /* We place white blocks to hide the excess border */
+        .children-stack > .mask-top {
+            position: absolute; left: -5px; top: 0; width: 10px; background: var(--bg);
+            /* Height must be calculated to reach the first card center. 
+               Wrapper padding is 0. 
+               First card center is at 275px.
+            */
+            height: 275px;
+        }
+        .children-stack > .mask-bottom {
+            position: absolute; left: -5px; bottom: 0; width: 10px; background: var(--bg);
+            height: 275px; /* Assumes last card is at bottom */
+        }
+        /* Note: This assumes cards are always 550px tall. If variable, this breaks. 
+           Since cards are fixed height in CSS, this is safe. */
+
+        /* --- CARD INTERNALS --- */
         .card-header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 16px 20px; border-bottom: 1px solid var(--border);
-            background: rgba(255,255,255,0.02); border-radius: 16px 16px 0 0;
+            background: rgba(255,255,255,0.02); border-radius: 12px 12px 0 0;
         }
 
         .card-title {
             font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.1rem; color: #fff;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 350px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;
         }
 
         .card-body {
             flex: 1; overflow-y: auto; padding: 24px;
-            font-size: 1rem; line-height: 1.6; color: #d1d5db;
+            font-size: 0.95rem; line-height: 1.6; color: #d1d5db;
             scroll-behavior: smooth;
-            overscroll-behavior: contain;
-            -webkit-overflow-scrolling: auto;
-            will-change: scroll-position;
-            transform: translateZ(0);
         }
-        .card-body::-webkit-scrollbar { width: 8px; }
-        .card-body::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        .card-body::-webkit-scrollbar { width: 6px; }
+        .card-body::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
         .card-body::-webkit-scrollbar-track { background: transparent; }
 
-        /* Typography */
-        .wiki-text h2 { font-family: 'Space Grotesk'; color: #fff; margin: 1.5rem 0 0.5rem; font-size: 1.4rem; }
-        .wiki-text p { margin-bottom: 1rem; max-width: 100%; word-wrap: break-word; }
-        .wiki-text a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(59,130,246,0.3); word-wrap: break-word; }
-        .wiki-text ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
-        .wiki-text blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; margin: 1rem 0; color: #cbd5e1; background: rgba(59,130,246,0.05); padding: 1rem; border-radius: 0 8px 8px 0; }
-        .wiki-text pre { background: #1e1e1e; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; border: 1px solid #333; }
-        .wiki-text code { background: #1e1e1e; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; color: #f59e0b; }
-        .wiki-text .thumb { display: none; }
+        /* Typography & Content */
+        .wiki-text h2 { font-family: 'Space Grotesk'; color: #fff; margin: 1.5rem 0 0.5rem; font-size: 1.2rem; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .wiki-text p { margin-bottom: 1rem; }
+        .wiki-text a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(59,130,246,0.3); transition: all 0.2s; }
+        .wiki-text a:hover { border-bottom-color: var(--accent); background: rgba(59,130,246,0.1); }
+        .wiki-text ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 1rem; color: #a1a1aa; }
+        .wiki-text blockquote { border-left: 3px solid var(--accent); padding-left: 1rem; color: #94a3b8; font-style: italic; margin: 1rem 0; }
+        .wiki-text img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; }
+        .wiki-text .thumb { display: none; } /* Hide heavy wikipedia containers */
 
         /* --- UI ELEMENTS --- */
         .search-bar {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 100; width: 420px; background: rgba(24,24,27,0.8); backdrop-filter: blur(12px);
+            z-index: 100; width: 420px; background: rgba(18,18,23,0.8); backdrop-filter: blur(12px);
             border: 1px solid var(--border); border-radius: 12px;
-            padding: 10px 16px; display: flex; align-items: center; gap: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: border-color 0.2s;
         }
-        .search-input { background: transparent; border: none; outline: none; color: white; width: 100%; font-size: 0.95rem; }
+        .search-bar:focus-within { border-color: var(--accent); }
+        .search-input { background: transparent; border: none; outline: none; color: white; width: 100%; font-size: 1rem; font-family: 'Inter', sans-serif; }
         
         .suggestions {
-            position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
-            width: 420px; background: #18181b; border: 1px solid var(--border);
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            width: 420px; background: #121217; border: 1px solid var(--border);
             border-radius: 12px; overflow: hidden; display: none; z-index: 99;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
         .suggestions.active { display: block; }
-        .s-item { padding: 12px 16px; border-bottom: 1px solid #27272a; cursor: pointer; color: #a1a1aa; display: flex; justify-content: space-between; }
+        .s-item { padding: 12px 16px; border-bottom: 1px solid #27272a; cursor: pointer; color: #a1a1aa; display: flex; justify-content: space-between; transition: background 0.1s; }
         .s-item:hover { background: #27272a; color: white; }
 
         .controls { 
@@ -181,43 +335,36 @@
             display: flex; flex-direction: column; gap: 10px; z-index: 90; 
         }
         .btn { 
-            width: 50px; height: 50px; background: rgba(24,24,27,0.9); backdrop-filter: blur(12px);
-            border: 2px solid var(--border); border-radius: 12px; color: #a1a1aa; 
+            width: 44px; height: 44px; background: rgba(18,18,23,0.9); backdrop-filter: blur(12px);
+            border: 1px solid var(--border); border-radius: 8px; color: #a1a1aa; 
             cursor: pointer; display: flex; align-items: center; justify-content: center; 
-            transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 1.2rem;
+            transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 1.2rem;
         }
-        .btn:hover { border-color: var(--accent); color: white; background: rgba(39,39,42,0.95); transform: translateY(-2px); }
+        .btn:hover { border-color: var(--accent); color: white; background: #27272a; }
         .zoom-level {
-            background: rgba(24,24,27,0.9); backdrop-filter: blur(12px); border: 2px solid var(--border); 
-            border-radius: 12px; padding: 8px 16px; color: var(--accent);
-            font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.9rem;
-            text-align: center; min-width: 50px;
-        }
-
-        /* --- MOBILE ADJUSTMENTS --- */
-        @media (max-width: 768px) {
-            /* Tighter Spacing for Mobile */
-            .node-wrapper { gap: 40px; }
-            .children-stack { gap: 20px; }
-            
-            /* Connector Adjustments for Tighter Gap */
-            .children-stack::before { left: -40px; width: 40px; }
-            .children-stack::after { left: -40px; }
-            .children-stack > .node-wrapper:first-child::after { left: -40px; }
-            .children-stack > .node-wrapper:last-child::after { left: -40px; }
-
-            /* Smaller Card */
-            .card { width: 340px; height: 500px; }
-            
-            /* UI Adjustments */
-            .search-bar { width: calc(100% - 32px); top: 16px; }
-            .suggestions { width: calc(100% - 32px); }
-            /* Keep controls visible on mobile now */
-            .controls { bottom: 20px; right: 20px; transform: scale(0.9); transform-origin: bottom right; }
+            background: rgba(18,18,23,0.9); border: 1px solid var(--border); 
+            border-radius: 8px; padding: 4px 0; color: #fff;
+            font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem;
+            text-align: center; width: 44px; margin-bottom: 4px;
         }
 
         .spinner { border: 2px solid #333; border-top-color: var(--accent); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- MOBILE --- */
+        @media (max-width: 768px) {
+            .node-wrapper { gap: 30px; margin-bottom: 10px; }
+            .card { width: 320px; height: 450px; }
+            /* Adjust connector positions for smaller card height (450/2 = 225) */
+            .children-stack > .node-wrapper::before { top: 225px; }
+            .node-wrapper > .line-out { top: 225px; }
+            .children-stack > .mask-top { height: 225px; }
+            .children-stack > .mask-bottom { height: 225px; }
+            
+            .search-bar { width: calc(100% - 40px); top: 20px; }
+            .suggestions { width: calc(100% - 40px); top: 75px; }
+            .controls { bottom: 20px; right: 20px; }
+        }
     </style>
 <script type="importmap">
 {
@@ -242,10 +389,10 @@
     <div id="suggestions" class="suggestions"></div>
 
     <div class="controls">
-        <button class="btn" onclick="zoomIn()" title="Zoom In"><i class="ri-zoom-in-line"></i></button>
-        <div class="zoom-level" id="zoomLevel">1.0x</div>
-        <button class="btn" onclick="zoomOut()" title="Zoom Out"><i class="ri-zoom-out-line"></i></button>
-        <button class="btn" onclick="resetView()" title="Reset View"><i class="ri-focus-2-line"></i></button>
+        <button class="btn" onclick="zoomIn()" title="Zoom In"><i class="ri-add-line"></i></button>
+        <div class="zoom-level" id="zoomLevel">100%</div>
+        <button class="btn" onclick="zoomOut()" title="Zoom Out"><i class="ri-subtract-line"></i></button>
+        <button class="btn" onclick="resetView()" title="Reset View"><i class="ri-focus-3-line"></i></button>
     </div>
 
     <div id="viewport">
@@ -263,10 +410,10 @@
             velocityX: 0, velocityY: 0,
             lastDragTime: 0,
             lastDragX: 0, lastDragY: 0,
-            touchStartDist: 0, // Pinch zoom
+            touchStartDist: 0,
             touchStartScale: 1,
-            isMomentumAnimating: false,
-            currentController: null
+            currentController: null,
+            nodeCount: 0
         };
 
         const dom = {
@@ -280,23 +427,22 @@
 
         const API = 'https://en.wikipedia.org/w/api.php?origin=*';
 
-        // --- Layout Engine ---
         function checkDevice() {
             state.isMobile = window.innerWidth <= 768;
-            // Removed layout resets here. Both mobile and desktop now use the same engine.
+            // Force reflow/update masks if needed
+            document.querySelectorAll('.mask-top, .mask-bottom').forEach(el => {
+                // In a real app we might recalculate heights, but CSS media queries handle the 550->450 switch.
+            });
         }
         window.addEventListener('resize', checkDevice);
         
         function updateTransform() {
-            const roundedX = Math.round(state.x);
-            const roundedY = Math.round(state.y);
-            dom.world.style.transform = `translate3d(${roundedX}px, ${roundedY}px, 0) scale(${state.scale})`;
-            if (dom.zoomLevel) dom.zoomLevel.textContent = `${state.scale.toFixed(1)}x`;
+            dom.world.style.transform = `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;
+            if (dom.zoomLevel) dom.zoomLevel.textContent = `${Math.round(state.scale * 100)}%`;
         }
 
-        // --- Interaction Handlers (Mouse & Touch) ---
+        // --- Viewport Interactions ---
 
-        // 1. Mouse Down / Touch Start
         function handleStart(clientX, clientY) {
             state.isDragging = true;
             state.startX = clientX - state.x;
@@ -304,85 +450,64 @@
             state.lastDragTime = Date.now();
             state.lastDragX = state.x;
             state.lastDragY = state.y;
-            state.velocityX = 0;
-            state.velocityY = 0;
-            
+            state.velocityX = 0; state.velocityY = 0;
             gsap.killTweensOf(state);
-            state.isMomentumAnimating = false;
             dom.viewport.classList.add('panning');
         }
 
-        // 2. Mouse Move / Touch Move
         function handleMove(clientX, clientY) {
             if (!state.isDragging) return;
-
+            const now = Date.now();
             const currentX = clientX - state.startX;
             const currentY = clientY - state.startY;
             
-            const currentTime = Date.now();
-            const timeDelta = currentTime - state.lastDragTime;
-            
-            if (timeDelta > 0) {
-                const deltaX = currentX - state.lastDragX;
-                const deltaY = currentY - state.lastDragY;
-                state.velocityX = deltaX / timeDelta;
-                state.velocityY = deltaY / timeDelta;
+            // Momentum Calc
+            const dt = now - state.lastDragTime;
+            if (dt > 0) {
+                state.velocityX = (currentX - state.lastDragX) / dt;
+                state.velocityY = (currentY - state.lastDragY) / dt;
             }
-            
-            state.x = currentX;
-            state.y = currentY;
+            state.lastDragTime = now;
             state.lastDragX = currentX;
             state.lastDragY = currentY;
-            state.lastDragTime = currentTime;
-            
-            updateTransform();
+
+            state.x = currentX;
+            state.y = currentY;
+            requestAnimationFrame(updateTransform);
         }
 
-        // 3. Mouse Up / Touch End
         function handleEnd() {
             if (!state.isDragging) return;
             state.isDragging = false;
             dom.viewport.classList.remove('panning');
             
-            // Momentum
-            if (Math.abs(state.velocityX) > 0.1 || Math.abs(state.velocityY) > 0.1) {
-                const momentumX = state.velocityX * 300; 
-                const momentumY = state.velocityY * 300;
-                const duration = Math.max(0.5, Math.min(1.2, Math.abs(momentumX + momentumY) / 500));
-                
+            // Apply Momentum
+            if (Math.hypot(state.velocityX, state.velocityY) > 0.1) {
                 gsap.to(state, {
-                    x: state.x + momentumX,
-                    y: state.y + momentumY,
-                    duration: duration,
+                    x: state.x + state.velocityX * 300,
+                    y: state.y + state.velocityY * 300,
+                    duration: 0.8,
                     ease: "power2.out",
                     onUpdate: updateTransform
                 });
             }
         }
 
-        // --- Desktop Listeners ---
         dom.viewport.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.card-body') || e.target.closest('.search-bar') || e.target.closest('.btn')) return;
+            if (e.target.closest('.card-body') || e.target.closest('input') || e.target.closest('button')) return;
             handleStart(e.clientX, e.clientY);
         });
-
         window.addEventListener('mousemove', (e) => {
-            if (state.isMobile) return; // Let touch listeners handle mobile
-            e.preventDefault();
-            handleMove(e.clientX, e.clientY);
+            e.preventDefault(); handleMove(e.clientX, e.clientY);
         });
-
         window.addEventListener('mouseup', handleEnd);
 
         dom.viewport.addEventListener('wheel', (e) => {
-            const isCtrl = e.ctrlKey || e.metaKey;
-            
-            if (isCtrl) {
+            if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
-                const delta = e.deltaY * -0.001;
-                zoom(delta, e.clientX, e.clientY);
+                zoom(e.deltaY * -0.001, e.clientX, e.clientY);
             } else {
-                if (e.target.closest('.card-body')) return;
+                if (e.target.closest('.card-body')) return; // Allow scroll in cards
                 e.preventDefault();
                 gsap.killTweensOf(state);
                 state.x -= e.deltaX;
@@ -391,98 +516,76 @@
             }
         }, { passive: false });
 
-        // --- Touch Listeners (New) ---
+        // Touch logic
         dom.viewport.addEventListener('touchstart', (e) => {
-            if (e.target.closest('.card-body') || e.target.closest('.search-bar') || e.target.closest('.btn')) return;
-            
-            // Allow default for 2 fingers (pinch) or background tap, prevent for drag if needed
-            if (e.touches.length === 2 || !e.target.closest('.card-body')) {
-                e.preventDefault();
-            }
-
-            if (e.touches.length === 1) {
+            if (e.target.closest('.card-body') || e.target.closest('input') || e.target.closest('button')) return;
+            if(e.touches.length === 2) {
+                 e.preventDefault();
+                 state.isDragging = false;
+                 const dx = e.touches[0].clientX - e.touches[1].clientX;
+                 const dy = e.touches[0].clientY - e.touches[1].clientY;
+                 state.touchStartDist = Math.hypot(dx, dy);
+                 state.touchStartScale = state.scale;
+            } else {
                 handleStart(e.touches[0].clientX, e.touches[0].clientY);
-            } else if (e.touches.length === 2) {
-                state.isDragging = false; // Stop dragging logic during pinch
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
-                state.touchStartDist = Math.hypot(dx, dy);
-                state.touchStartScale = state.scale;
             }
         }, { passive: false });
 
         dom.viewport.addEventListener('touchmove', (e) => {
-             if (e.touches.length === 2 || !e.target.closest('.card-body')) {
+            if(e.touches.length === 2) {
                 e.preventDefault();
-            }
-
-            if (e.touches.length === 1) {
-                handleMove(e.touches[0].clientX, e.touches[0].clientY);
-            } else if (e.touches.length === 2) {
-                // Pinch Logic
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 const dist = Math.hypot(dx, dy);
+                const scaleFactor = dist / state.touchStartDist;
+                const newScale = Math.min(Math.max(0.1, state.touchStartScale * scaleFactor), 3);
                 
-                if (state.touchStartDist > 0) {
-                    const scaleFactor = dist / state.touchStartDist;
-                    const newScale = Math.min(Math.max(0.2, state.touchStartScale * scaleFactor), 3);
-                    
-                    // Simple center zoom for stability
-                    const rect = dom.viewport.getBoundingClientRect();
-                    const cx = rect.width / 2;
-                    const cy = rect.height / 2;
-                    
-                    // Adjust position to zoom into center
-                    // Note: full anchor-point zoom on pinch is complex without extra state, keeping simple center zoom here
-                    const ratio = newScale / state.scale;
-                    // state.x = cx - (cx - state.x) * ratio; // Optional: Zoom towards center
-                    // state.y = cy - (cy - state.y) * ratio;
-                    
-                    state.scale = newScale;
-                    updateTransform();
-                }
+                // Zoom to center for simplicity on pinch
+                const rect = dom.viewport.getBoundingClientRect();
+                const mx = rect.width/2; 
+                const my = rect.height/2;
+                // Basic zoom calc (can be improved to zoom to pinch center)
+                state.scale = newScale;
+                updateTransform();
+            } else {
+                handleMove(e.touches[0].clientX, e.touches[0].clientY);
             }
         }, { passive: false });
-
-        dom.viewport.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) handleEnd();
-        });
+        dom.viewport.addEventListener('touchend', handleEnd);
 
 
         // --- Core Functions ---
         function zoom(delta, centerX, centerY) {
             const currentScale = state.scale;
-            const newScale = Math.min(Math.max(0.3, currentScale + delta), 2.5);
+            const newScale = Math.min(Math.max(0.1, currentScale + delta), 2.5);
             
             const rect = dom.viewport.getBoundingClientRect();
-            // Default to screen center if no coords provided (e.g. buttons)
-            const mx = centerX ?? (rect.left + rect.width/2);
-            const my = centerY ?? (rect.top + rect.height/2);
+            const mx = centerX ?? (rect.width/2);
+            const my = centerY ?? (rect.height/2);
             
+            // Translate to keep mouse point stable
             const worldX = (mx - state.x) / currentScale;
             const worldY = (my - state.y) / currentScale;
-
-            gsap.to(state, {
-                scale: newScale,
-                x: mx - worldX * newScale,
-                y: my - worldY * newScale,
-                duration: 0.2,
-                ease: "power2.out",
-                onUpdate: updateTransform
-            });
+            
+            state.x = mx - worldX * newScale;
+            state.y = my - worldY * newScale;
+            state.scale = newScale;
+            
+            // Animate only if button trigger (no mouse coords)
+            if (!centerX) {
+                gsap.to(state, { scale: newScale, x: state.x, y: state.y, duration: 0.3, onUpdate: updateTransform });
+            } else {
+                updateTransform();
+            }
         }
 
-        // --- Wikipedia Logic (Same as before) ---
         async function fetchSuggestions(query) {
             if (query.length < 2) return [];
             if (state.currentController) state.currentController.abort();
             state.currentController = new AbortController();
             
             try {
-                const res = await fetch(`${API}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, {
-                    signal: state.currentController.signal
-                });
+                const res = await fetch(`${API}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, { signal: state.currentController.signal });
                 const data = await res.json();
                 return data[1].map((t, i) => ({ title: t, desc: data[2][i] }));
             } catch (error) { return []; }
@@ -494,12 +597,35 @@
                 const data = await res.json();
                 if (data.error) throw new Error(data.error.info);
                 return { title: data.parse.displaytitle || title, html: data.parse.text['*'] };
-            } catch (error) { return { error: error.message || 'Error' }; }
+            } catch (error) { return { error: error.message || 'Error loading page' }; }
+        }
+
+        // --- Tree Node Logic ---
+
+        function highlightPath(element, active) {
+            let current = element;
+            while(current && current.id !== 'world') {
+                if(current.classList.contains('node-wrapper')) {
+                    if(active) current.classList.add('path-active');
+                    else current.classList.remove('path-active');
+                }
+                if(current.classList.contains('children-stack')) {
+                    if(active) current.classList.add('path-active');
+                    else current.classList.remove('path-active');
+                }
+                current = current.parentElement;
+            }
         }
 
         function createNode(title, parentStack = null) {
+            state.nodeCount++;
             const wrapper = document.createElement('div');
             wrapper.className = 'node-wrapper';
+
+            // Output line (to connect to children)
+            const lineOut = document.createElement('div');
+            lineOut.className = 'line-out';
+            wrapper.appendChild(lineOut);
 
             const card = document.createElement('div');
             card.className = 'card';
@@ -514,14 +640,20 @@
                     </div>
                 </div>
             `;
+            
+            // Path Tracing Events
+            card.addEventListener('mouseenter', () => highlightPath(wrapper, true));
+            card.addEventListener('mouseleave', () => highlightPath(wrapper, false));
 
             wrapper.appendChild(card);
-            // Animate entry
-            gsap.from(card, { opacity:0, y:20, scale:0.95, duration:0.4 });
+            
+            // Initial animation
+            gsap.from(card, { opacity:0, x:-20, duration:0.4, clearProps:"all" });
 
             if (!parentStack) {
                 dom.world.innerHTML = '';
                 dom.world.appendChild(wrapper);
+                // Center initial view
                 setTimeout(resetView, 100);
             } else {
                 parentStack.appendChild(wrapper);
@@ -535,10 +667,13 @@
                 }
                 
                 const clean = DOMPurify.sanitize(data.html, {
-                    FORBID_TAGS: ['style','script','iframe','form','meta','link'],
-                    ALLOWED_TAGS: ['p','br','strong','b','em','i','u','s','a','h1','h2','h3','h4','h5','ul','ol','li','blockquote','pre','code','span','div','table','tr','td','th','img'],
+                    FORBID_TAGS: ['style','script','iframe','form','meta','link','style'],
+                    ALLOWED_TAGS: ['p','br','strong','b','em','i','u','s','a','h2','h3','ul','ol','li','blockquote','pre','code','span','div','img'],
                     ALLOWED_ATTR: ['href','src','alt','title','class','id']
                 });
+                
+                // Simple parser to limit content length for performance if needed, 
+                // but for now we just dump it.
                 card.querySelector('.card-title').innerHTML = data.title;
                 body.innerHTML = clean;
                 body.classList.add('wiki-text');
@@ -548,13 +683,16 @@
                     const href = link.getAttribute('href');
                     if(href && href.startsWith('/wiki/')) {
                         const target = href.replace('/wiki/', '').split('#')[0];
-                        if(target.includes(':')) { link.removeAttribute('href'); link.style.opacity = 0.5; return; }
+                        if(target.includes(':')) { 
+                            link.style.opacity = 0.5; link.removeAttribute('href'); return; 
+                        }
                         link.onclick = (e) => {
                             e.preventDefault();
                             spawnChild(wrapper, target);
                         };
                     } else {
                         link.target = "_blank";
+                        link.innerHTML += ' <i class="ri-external-link-line" style="font-size:0.8em"></i>';
                     }
                 });
             });
@@ -565,22 +703,64 @@
             if(!stack) {
                 stack = document.createElement('div');
                 stack.className = 'children-stack';
+                
+                // Add masks for the bus line
+                const maskTop = document.createElement('div');
+                maskTop.className = 'mask-top';
+                stack.appendChild(maskTop);
+                
+                const maskBottom = document.createElement('div');
+                maskBottom.className = 'mask-bottom';
+                stack.appendChild(maskBottom);
+                
                 parentWrapper.appendChild(stack);
             }
-            createNode(title, stack);
+            
+            // Check for duplicates in this stack
+            const existing = Array.from(stack.querySelectorAll('.card-title')).find(el => el.textContent === title);
+            if(existing) {
+                // Flash the existing card
+                const card = existing.closest('.card');
+                gsap.to(card, { borderColor: '#f59e0b', duration: 0.2, yoyo: true, repeat: 3 });
+                return;
+            }
+
+            // Insert before the bottom mask
+            const maskBottom = stack.querySelector('.mask-bottom');
+            const newNode = createNode(title, stack);
+            stack.insertBefore(stack.lastElementChild, maskBottom); // Move new node before mask
         }
 
         function removeNode(icon) {
             const wrapper = icon.closest('.node-wrapper');
-            gsap.to(wrapper, { opacity:0, height:0, margin:0, padding:0, duration:0.3, onComplete: () => wrapper.remove() });
+            const stack = wrapper.parentElement;
+            
+            gsap.to(wrapper, { 
+                opacity: 0, 
+                height: 0, 
+                marginBottom: 0,
+                duration: 0.3, 
+                onComplete: () => {
+                    wrapper.remove();
+                    // If stack is empty (only masks left), remove stack
+                    if(stack && stack.classList.contains('children-stack')) {
+                        // 2 masks = 2 children
+                        if(stack.children.length <= 2) stack.remove();
+                    }
+                } 
+            });
         }
 
-        // --- Search ---
+        // --- Search & UI ---
         let debounce;
         dom.input.addEventListener('input', (e) => {
             if (debounce) clearTimeout(debounce);
             const val = e.target.value;
-            if(val.length < 2) { dom.suggestions.classList.remove('active'); dom.loader.style.opacity = 0; return; }
+            if(val.length < 2) { 
+                dom.suggestions.classList.remove('active'); 
+                dom.loader.style.opacity = 0; 
+                return; 
+            }
             
             dom.loader.style.opacity = 1;
             debounce = setTimeout(async () => {
@@ -592,10 +772,15 @@
 
         function renderSuggestions(list) {
             dom.suggestions.innerHTML = '';
+            if(list.length === 0) { dom.suggestions.classList.remove('active'); return; }
+            
             list.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 's-item';
-                div.innerHTML = `<span>${item.title}</span><span style="font-size:0.8em; opacity:0.5;">${item.desc || ''}</span>`;
+                div.innerHTML = `
+                    <div style="font-weight:500; color:#e2e8f0">${item.title}</div>
+                    <div style="font-size:0.85em; opacity:0.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;">${item.desc || 'Wikipedia Article'}</div>
+                `;
                 div.onclick = () => {
                     createNode(item.title);
                     dom.suggestions.classList.remove('active');
@@ -606,37 +791,48 @@
             dom.suggestions.classList.add('active');
         }
 
-        // --- Controls Wrapper ---
-        function zoomIn() { zoom(0.2); }
-        function zoomOut() { zoom(-0.2); }
-        
+        // Controls
+        function zoomIn() { zoom(0.3); }
+        function zoomOut() { zoom(-0.3); }
         function resetView() {
-            const cardWidth = state.isMobile ? 340 : 450;
-            state.x = (window.innerWidth/2) - (cardWidth/2);
-            state.y = (window.innerHeight/2) - 300;
+            // Find root card
+            const root = dom.world.querySelector('.node-wrapper .card');
+            if(!root) return;
+            
+            const cardW = state.isMobile ? 320 : 400;
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+            
+            // Center the first card
+            state.x = (screenW / 2) - (cardW / 2);
+            state.y = (screenH / 2) - 275; // Half card height
             state.scale = 1;
-            gsap.to(state, { duration: 0.6, ease: "power2.inOut", onUpdate: updateTransform });
+            
+            gsap.to(state, { 
+                x: state.x, y: state.y, scale: 1, 
+                duration: 0.8, ease: "power2.inOut", 
+                onUpdate: updateTransform 
+            });
         }
 
-        // Keyboard
+        // Keyboard Shortcuts
         window.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT') return;
             if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
                 e.preventDefault();
-                const spd = e.shiftKey ? 200 : 100;
-                if(e.key === 'ArrowLeft') gsap.to(state, {x: state.x + spd, duration:0.2, onUpdate: updateTransform});
-                if(e.key === 'ArrowRight') gsap.to(state, {x: state.x - spd, duration:0.2, onUpdate: updateTransform});
-                if(e.key === 'ArrowUp') gsap.to(state, {y: state.y + spd, duration:0.2, onUpdate: updateTransform});
-                if(e.key === 'ArrowDown') gsap.to(state, {y: state.y - spd, duration:0.2, onUpdate: updateTransform});
+                const step = 100 / state.scale;
+                if(e.key === 'ArrowLeft') state.x += step;
+                if(e.key === 'ArrowRight') state.x -= step;
+                if(e.key === 'ArrowUp') state.y += step;
+                if(e.key === 'ArrowDown') state.y -= step;
+                updateTransform();
             }
-            if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); zoomIn(); }
-            if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); zoomOut(); }
-            if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); resetView(); }
         });
 
         // Init
         checkDevice();
-        createNode("Internet");
+        createNode("Fractal");
+
     </script>
 </body>
 </html>
