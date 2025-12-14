@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WikiFractal | Unified Canvas</title>
+    <title>WikiFractal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
@@ -28,53 +28,39 @@
             font-family: 'Inter', sans-serif;
             width: 100vw;
             height: 100vh;
-            overflow: hidden; /* CRITICAL: Prevent native body scroll on all devices */
-            overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
+            overflow: hidden; /* Default for Desktop */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* --- VIEWPORT --- */
+        /* --- DESKTOP VIEWPORT --- */
         #viewport {
             width: 100%;
             height: 100%;
             overflow: hidden;
             cursor: grab;
             position: relative;
-            /* CRITICAL: Allows us to handle drag manually, but lets children (cards) handle their own touch interactions */
-            touch-action: none; 
+            touch-action: none; /* Prevents browser bounce on Desktop drag */
         }
         #viewport.panning { cursor: grabbing; }
 
         #world {
             position: absolute;
             display: flex;
-            padding: 50vh 50vw;
+            padding: 50vh 50vw; /* Start center-ish */
             transform-origin: 0 0;
             will-change: transform;
             backface-visibility: hidden;
-            /* Ensure the world itself doesn't capture clicks, let them pass to cards or viewport */
-            pointer-events: none; 
+            perspective: 1000px;
+            transform-style: preserve-3d;
         }
-        
-        /* Re-enable pointer events for the actual content */
-        .node-wrapper { pointer-events: auto; }
 
-        /* --- TREE LAYOUT --- */
+        /* --- TREE LAYOUT (DESKTOP) --- */
         .node-wrapper {
             display: flex;
             align-items: center;
             gap: 80px;
             position: relative;
-        }
-
-        /* Mobile Adjustment: Reduce gaps slightly on small screens */
-        @media (max-width: 768px) {
-            .node-wrapper { gap: 40px; }
-            .children-stack { gap: 25px; }
-            .children-stack::before { width: 40px; left: -40px; }
-            .children-stack::after { left: -40px; }
-            /* Adjust connector positions for smaller gap */
-            .children-stack > .node-wrapper:first-child::after { left: -40px; }
-            .children-stack > .node-wrapper:last-child::after { left: -40px; }
         }
 
         .children-stack {
@@ -84,28 +70,43 @@
             position: relative;
         }
 
-        /* Connectors */
+        /* Connectors - Enhanced visibility */
         .children-stack::before {
             content: ''; position: absolute;
             left: -80px; top: 50%; width: 80px; height: 3px;
             background: linear-gradient(90deg, #52525b, #3b82f6);
             transform: translateY(-1.5px);
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
             transition: all 0.3s ease;
+        }
+        .children-stack:hover::before {
+            background: linear-gradient(90deg, #71717a, #60a5fa);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+            height: 4px;
         }
         .children-stack::after {
             content: ''; position: absolute;
             left: -80px; top: 0; bottom: 0; width: 3px;
             background: #52525b;
+            box-shadow: 0 0 6px rgba(59, 130, 246, 0.2);
             transition: all 0.3s ease;
         }
+        .children-stack:hover::after {
+            background: #71717a;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+            width: 4px;
+        }
+        /* Hide vertical line for single child or first/last adjustments */
         .children-stack > .node-wrapper:only-child::after { display: none; }
         
+        /* Masking lines for first/last child to create rounded tree look */
         .children-stack > .node-wrapper:first-child::after {
             content: ''; position: absolute; left: -80px; top: -50px; bottom: 50%; width: 5px; background: var(--bg); z-index: 1;
         }
         .children-stack > .node-wrapper:last-child::after {
             content: ''; position: absolute; left: -80px; top: 50%; bottom: -50px; width: 5px; background: var(--bg); z-index: 1;
         }
+
 
         /* --- CARD UI --- */
         .card {
@@ -120,15 +121,9 @@
             position: relative;
             z-index: 10;
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            transition: border-color 0.2s;
         }
-
-        /* Mobile Card Resize */
-        @media (max-width: 768px) {
-            .card {
-                width: 340px; /* Slightly smaller for mobile context */
-                height: 500px;
-            }
-        }
+        .card:hover { border-color: #52525b; }
 
         .card-header {
             display: flex; justify-content: space-between; align-items: center;
@@ -138,70 +133,167 @@
 
         .card-title {
             font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.1rem; color: #fff;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 350px;
         }
 
         .card-body {
             flex: 1; overflow-y: auto; padding: 24px;
             font-size: 1rem; line-height: 1.6; color: #d1d5db;
-            /* CRITICAL: Re-enable native touch scrolling INSIDE the card */
-            touch-action: pan-y; 
+            scroll-behavior: smooth;
             overscroll-behavior: contain;
-            cursor: auto;
+            /* Enhanced performance for desktop */
+            -webkit-overflow-scrolling: auto;
+            will-change: scroll-position;
+            transform: translate3d(0,0,0);
+            will-change: transform; /* Helps browser prepare for movement */
+    backface-visibility: hidden; /* Reduces 3D jitter */
+    transform: translateZ(0); /* Forces GPU acceleration */
         }
-        
-        /* Scrollbar styling */
-        .card-body::-webkit-scrollbar { width: 6px; }
-        .card-body::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        /* Scrollbar */
+        .card-body::-webkit-scrollbar { width: 8px; }
+        .card-body::-webkit-scrollbar-thumb { 
+            background: #3f3f46; 
+            border-radius: 4px; 
+            transition: background 0.2s;
+        }
+        .card-body::-webkit-scrollbar-thumb:hover { 
+            background: #52525b; 
+        }
         .card-body::-webkit-scrollbar-track { background: transparent; }
 
         /* Typography */
-        .wiki-text h2 { font-family: 'Space Grotesk'; color: #fff; margin: 1.5rem 0 0.5rem; font-size: 1.2rem; }
-        .wiki-text p { margin-bottom: 1rem; }
-        .wiki-text a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(59,130,246,0.3); }
+        .wiki-text h2 { font-family: 'Space Grotesk'; color: #fff; margin: 1.5rem 0 0.5rem; font-size: 1.4rem; }
+        .wiki-text p { margin-bottom: 1rem; max-width: 100%; word-wrap: break-word; }
+        .wiki-text a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(59,130,246,0.3); word-wrap: break-word; }
+        .wiki-text a:hover { background: rgba(59,130,246,0.1); }
+        .wiki-text ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .wiki-text blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; margin: 1rem 0; color: #cbd5e1; background: rgba(59,130,246,0.05); padding: 1rem; border-radius: 0 8px 8px 0; }
+        .wiki-text pre { background: #1e1e1e; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; border: 1px solid #333; }
+        .wiki-text code { background: #1e1e1e; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; color: #f59e0b; }
+        .wiki-text pre code { background: transparent; padding: 0; color: inherit; }
 
         /* --- UI ELEMENTS --- */
         .search-bar {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 100; width: 90%; max-width: 420px; 
-            background: rgba(24,24,27,0.9); backdrop-filter: blur(12px);
+            z-index: 100; width: 420px; background: rgba(24,24,27,0.8); backdrop-filter: blur(12px);
             border: 1px solid var(--border); border-radius: 12px;
             padding: 10px 16px; display: flex; align-items: center; gap: 10px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
-        .search-input { background: transparent; border: none; outline: none; color: white; width: 100%; font-size: 16px; /* 16px prevents iOS zoom on focus */ }
+        .search-input { background: transparent; border: none; outline: none; color: white; width: 100%; font-size: 0.95rem; }
         
         .suggestions {
             position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 420px; background: #18181b; border: 1px solid var(--border);
+            width: 420px; background: #18181b; border: 1px solid var(--border);
             border-radius: 12px; overflow: hidden; display: none; z-index: 99;
         }
         .suggestions.active { display: block; }
-        .s-item { padding: 12px 16px; border-bottom: 1px solid #27272a; cursor: pointer; color: #a1a1aa; }
+        .s-item { padding: 12px 16px; border-bottom: 1px solid #27272a; cursor: pointer; color: #a1a1aa; display: flex; justify-content: space-between; }
+        .s-item:hover { background: #27272a; color: white; }
 
         .controls { 
             position: fixed; bottom: 30px; right: 30px; 
             display: flex; flex-direction: column; gap: 10px; z-index: 90; 
         }
-        @media (max-width: 768px) {
-            .controls { bottom: 20px; right: 20px; }
-            .btn { width: 44px; height: 44px; font-size: 1.1rem; }
-            .zoom-level { font-size: 0.8rem; padding: 6px 10px; }
-        }
-
         .btn { 
             width: 50px; height: 50px; 
-            background: rgba(24,24,27,0.9); backdrop-filter: blur(12px);
-            border: 2px solid var(--border); border-radius: 12px; 
-            color: #a1a1aa; cursor: pointer; 
+            background: rgba(24,24,27,0.9); 
+            backdrop-filter: blur(12px);
+            border: 2px solid var(--border); 
+            border-radius: 12px; 
+            color: #a1a1aa; 
+            cursor: pointer; 
             display: flex; align-items: center; justify-content: center; 
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             font-size: 1.2rem;
         }
-        .btn:active { transform: scale(0.95); }
+        .btn:hover { 
+            border-color: var(--accent); 
+            color: white; 
+            background: rgba(39,39,42,0.95); 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59,130,246,0.3);
+        }
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
         .zoom-level {
-            background: rgba(24,24,27,0.9); border: 2px solid var(--border); 
-            border-radius: 12px; padding: 8px 16px; color: var(--accent);
-            text-align: center; font-weight: 600;
+            background: rgba(24,24,27,0.9); 
+            backdrop-filter: blur(12px);
+            border: 2px solid var(--border); 
+            border-radius: 12px;
+            padding: 8px 16px;
+            color: var(--accent);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            text-align: center;
+            min-width: 50px;
+        }
+
+        /* --- MOBILE OVERRIDES --- */
+        @media (max-width: 768px) {
+            body { 
+                overflow-y: auto; /* Enable native scroll */
+                height: auto;
+                -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+                scroll-behavior: smooth;
+                /* Enhanced hardware acceleration for mobile */
+                -webkit-transform: translate3d(0,0,0);
+                -moz-transform: translate3d(0,0,0);
+                -ms-transform: translate3d(0,0,0);
+                transform: translate3d(0,0,0);
+            }
+            #viewport { 
+                position: static; height: auto; overflow: visible; cursor: default; 
+                touch-action: auto; /* Re-enable native gestures */
+            }
+            #world { 
+                position: static; transform: none !important; display: block; 
+                padding: 80px 16px 40px; width: 100%; 
+                /* Enhanced GPU acceleration */
+                will-change: auto;
+                transform-style: flat;
+            }
+            
+            /* Vertical Stack */
+            .node-wrapper { flex-direction: column; gap: 20px; margin-bottom: 20px; align-items: stretch; }
+            .children-stack { 
+                padding-left: 16px; 
+                border-left: 3px solid #52525b; 
+                gap: 20px; 
+                margin-left: 10px; 
+            }
+            .children-stack::before, .children-stack::after, 
+            .children-stack > .node-wrapper:first-child::after,
+            .children-stack > .node-wrapper:last-child::after { display: none; }
+
+            /* Mobile Card */
+            .card { 
+                width: 100%; 
+                height: auto; 
+                max-height: none; 
+                border-radius: 12px;
+                /* Hardware acceleration for mobile animations */
+                -webkit-transform: translate3d(0,0,0);
+                transform: translate3d(0,0,0);
+            }
+            .card-header { padding: 14px; }
+            .card-body { 
+                padding: 16px; 
+                /* Enhanced mobile scroll performance */
+                -webkit-overflow-scrolling: touch;
+                scroll-behavior: smooth;
+                overscroll-behavior: contain;
+            }
+
+            /* Mobile UI */
+            .search-bar { width: calc(100% - 32px); top: 16px; }
+            .suggestions { width: calc(100% - 32px); }
+            .controls { display: none; }
         }
 
         .spinner { border: 2px solid #333; border-top-color: var(--accent); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
@@ -212,17 +304,18 @@
 
     <div class="search-bar">
         <i class="ri-search-line text-gray-500"></i>
-        <input type="text" id="searchInput" class="search-input" placeholder="Search..." autocomplete="off">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search Wikipedia..." autocomplete="off">
         <div id="loader" class="spinner" style="opacity: 0;"></div>
     </div>
     <div id="suggestions" class="suggestions"></div>
 
     <div class="controls">
-        <button class="btn" onclick="zoomIn()"><i class="ri-add-line"></i></button>
+        <button class="btn" onclick="zoomIn()" title="Zoom In (Ctrl/Cmd +)"><i class="ri-zoom-in-line"></i></button>
         <div class="zoom-level" id="zoomLevel">1.0x</div>
-        <button class="btn" onclick="zoomOut()"><i class="ri-subtract-line"></i></button>
-        <button class="btn" onclick="resetView()"><i class="ri-focus-2-line"></i></button>
+        <button class="btn" onclick="zoomOut()" title="Zoom Out (Ctrl/Cmd -)"><i class="ri-zoom-out-line"></i></button>
+        <button class="btn" onclick="resetView()" title="Reset View"><i class="ri-focus-2-line"></i></button>
     </div>
+
 
     <div id="viewport">
         <div id="world"></div>
@@ -231,12 +324,16 @@
     <script>
         // --- State ---
         const state = {
-            scale: window.innerWidth < 768 ? 0.8 : 1, // Start slightly zoomed out on mobile
+            isMobile: window.innerWidth <= 768,
+            scale: 1,
             x: 0, y: 0,
             isDragging: false,
             startX: 0, startY: 0,
-            initialPinchDist: 0,
-            initialScale: 1
+            velocityX: 0, velocityY: 0,
+            lastDragTime: 0,
+            lastDragX: 0, lastDragY: 0,
+            isMomentumAnimating: false,
+            currentController: null // For AbortController
         };
 
         const dom = {
@@ -250,114 +347,237 @@
 
         const API = 'https://en.wikipedia.org/w/api.php?origin=*';
 
-        // --- Core Render Logic ---
-        function updateTransform() {
-            // Rounding pixels ensures crisp text
-            const rX = Math.round(state.x);
-            const rY = Math.round(state.y);
-            dom.world.style.transform = `translate3d(${rX}px, ${rY}px, 0) scale(${state.scale})`;
-            dom.zoomLevel.textContent = `${state.scale.toFixed(1)}x`;
-        }
+        // --- Layout Engine ---
+        function checkDevice() {
+            const wasMobile = state.isMobile;
+            state.isMobile = window.innerWidth <= 768;
 
-        // --- Unified Pointer Events (Mouse & Touch) ---
-        // This effectively gives mobile users the exact same "Drag to Pan" experience
-        
-        dom.viewport.addEventListener('pointerdown', (e) => {
-            // 1. Ignore if clicking a UI button or Search
-            if (e.target.closest('.btn') || e.target.closest('.search-bar')) return;
-
-            // 2. CRITICAL: If touching inside a card body, check if it's scrollable
-            // If it is, we let the browser handle native scrolling and DO NOT drag the world.
-            if (e.target.closest('.card-body')) {
-                // We stop here. The 'touch-action: pan-y' in CSS handles the rest.
-                return; 
+            if (state.isMobile !== wasMobile) {
+                if (state.isMobile) {
+                    // Switch to Mobile: Reset ALL transform state, allow native scroll
+                    state.scale = 1;
+                    state.x = 0;
+                    state.y = 0;
+                    dom.world.style.transform = '';
+                    dom.viewport.style.cursor = 'default';
+                    dom.viewport.style.touchAction = 'auto';
+                    dom.world.style.touchAction = 'auto';
+                } else {
+                    // Switch to Desktop: Center view, enable pan/zoom
+                    resetView();
+                    dom.viewport.style.cursor = 'grab';
+                    dom.viewport.style.touchAction = 'none';
+                    dom.world.style.touchAction = 'none';
+                }
             }
+        }
+        window.addEventListener('resize', checkDevice);
+        
+      function updateTransform() {
+    if (state.isMobile) return;
+    
+    // THE FIX: rounding x and y prevents sub-pixel blurring
+    const roundedX = Math.round(state.x);
+    const roundedY = Math.round(state.y);
+    
+    dom.world.style.transform = `translate3d(${roundedX}px, ${roundedY}px, 0) scale(${state.scale})`;
+    
+    if (dom.zoomLevel) {
+        dom.zoomLevel.textContent = `${state.scale.toFixed(1)}x`;
+    }
+}
+        // --- Desktop Interactions ---
+        dom.viewport.addEventListener('mousedown', (e) => {
+            if (state.isMobile) return;
+            // Don't drag if clicking UI or inside card text
+            if (e.target.closest('.card-body') || e.target.closest('.search-bar') || e.target.closest('.btn')) return;
 
-            // 3. Start World Drag
-            e.preventDefault(); // Stop text selection or native behavior
             state.isDragging = true;
             state.startX = e.clientX - state.x;
             state.startY = e.clientY - state.y;
+            state.lastDragTime = Date.now();
+            state.lastDragX = state.x;
+            state.lastDragY = state.y;
+            state.velocityX = 0;
+            state.velocityY = 0;
+            
+            // Cancel any ongoing momentum animation
+            gsap.killTweensOf(state);
+            state.isMomentumAnimating = false;
+            
             dom.viewport.classList.add('panning');
-            dom.viewport.setPointerCapture(e.pointerId); // Keep tracking even if cursor leaves window
         });
 
-        dom.viewport.addEventListener('pointermove', (e) => {
+        window.addEventListener('mouseup', () => {
             if (!state.isDragging) return;
-            e.preventDefault();
-            
-            state.x = e.clientX - state.startX;
-            state.y = e.clientY - state.startY;
-            
-            // Use requestAnimationFrame for smoother performance
-            requestAnimationFrame(updateTransform);
-        });
-
-        dom.viewport.addEventListener('pointerup', (e) => {
             state.isDragging = false;
             dom.viewport.classList.remove('panning');
-            dom.viewport.releasePointerCapture(e.pointerId);
+            
+            // Start momentum animation if velocity is significant
+            if (Math.abs(state.velocityX) > 0.1 || Math.abs(state.velocityY) > 0.1) {
+                startMomentumAnimation();
+            }
         });
 
-        // --- Touch Pinch-to-Zoom (Mobile Specific) ---
-        // This is essential for a "Developer Grade" mobile infinite canvas
-        dom.viewport.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 2) {
-                state.isDragging = false; // Disable drag if pinching
-                state.initialPinchDist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-                state.initialScale = state.scale;
-            }
-        }, { passive: false }); // Passive false allows preventDefault
-
-        dom.viewport.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 2) {
-                e.preventDefault(); // Prevent native browser zoom
-                const dist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-                const delta = dist - state.initialPinchDist;
-                
-                // Smooth zoom calculation
-                const newScale = state.initialScale + (delta * 0.005);
-                state.scale = Math.min(Math.max(0.2, newScale), 3);
-                requestAnimationFrame(updateTransform);
-            }
-        }, { passive: false });
-
-
-        // --- Desktop Wheel Zoom ---
-        dom.viewport.addEventListener('wheel', (e) => {
-            if (e.target.closest('.card-body')) return; // Allow card scrolling
-            
+        window.addEventListener('mousemove', (e) => {
+            if (!state.isDragging || state.isMobile) return;
             e.preventDefault();
-            const delta = e.deltaY * -0.001;
-            const newScale = Math.min(Math.max(0.2, state.scale + delta), 3);
             
-            // Zoom towards cursor logic could go here, keeping it simple for stability
-            state.scale = newScale;
-            requestAnimationFrame(updateTransform);
+            const currentX = e.clientX - state.startX;
+            const currentY = e.clientY - state.startY;
+            
+            // Calculate velocity for momentum
+            const currentTime = Date.now();
+            const timeDelta = currentTime - state.lastDragTime;
+            
+            if (timeDelta > 0) {
+                const deltaX = currentX - state.lastDragX;
+                const deltaY = currentY - state.lastDragY;
+                
+                // Calculate velocity (pixels per millisecond)
+                state.velocityX = deltaX / timeDelta;
+                state.velocityY = deltaY / timeDelta;
+            }
+            
+            state.x = currentX;
+            state.y = currentY;
+            state.lastDragX = currentX;
+            state.lastDragY = currentY;
+            state.lastDragTime = currentTime;
+            
+            updateTransform();
+        });
+
+        // Momentum animation with smooth deceleration
+        function startMomentumAnimation() {
+            state.isMomentumAnimating = true;
+            
+            const momentumX = state.velocityX * 150; // Scale velocity
+            const momentumY = state.velocityY * 150;
+            const duration = Math.max(0.5, Math.min(1.2, Math.abs(momentumX + momentumY) / 200));
+            
+            gsap.to(state, {
+                x: state.x + momentumX,
+                y: state.y + momentumY,
+                duration: duration,
+                ease: "power2.out",
+                onUpdate: updateTransform,
+                onComplete: () => {
+                    state.isMomentumAnimating = false;
+                }
+            });
+        }
+
+        dom.viewport.addEventListener('wheel', (e) => {
+            if (state.isMobile) return; // Allow native mobile scroll
+
+            const isCtrl = e.ctrlKey || e.metaKey;
+            const isOverCard = e.target.closest('.card-body');
+
+            // 1. ZOOM (Ctrl+Wheel OR Pinch on Trackpad)
+            if (isCtrl) {
+                e.preventDefault();
+                
+                // Cancel any ongoing animations for smooth transitions
+                gsap.killTweensOf(state);
+                
+                const delta = e.deltaY * -0.001; // Reduced for more granular control
+                const currentScale = state.scale;
+                const newScale = Math.min(Math.max(0.3, currentScale + delta), 2.5);
+                
+                // Zoom towards mouse position
+                const rect = dom.viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                const worldX = (mouseX - state.x) / currentScale;
+                const worldY = (mouseY - state.y) / currentScale;
+
+                // Ultra-smooth zoom animation with enhanced GSAP
+                gsap.to(state, {
+                    scale: newScale,
+                    x: mouseX - worldX * newScale,
+                    y: mouseY - worldY * newScale,
+                    duration: 0.1, // Reduced for more responsive feel
+                    ease: "power2.out",
+                    onUpdate: updateTransform
+                });
+                return;
+            }
+
+            // 2. SCROLL CARD (If hovering text, let browser handle it)
+            if (isOverCard) return;
+
+            // 3. PAN MAP (If hovering background) - Enhanced smooth panning
+            e.preventDefault();
+            
+            // Cancel any ongoing momentum animation for smooth transitions
+            gsap.killTweensOf(state);
+            
+            const deltaX = e.deltaX * 1.5; // Enhanced momentum factor
+            const deltaY = e.deltaY * 1.5;
+            
+            gsap.to(state, {
+                x: state.x - deltaX,
+                y: state.y - deltaY,
+                duration: 0.25, // Slightly faster for better responsiveness
+                ease: "power2.out",
+                onUpdate: updateTransform
+            });
         }, { passive: false });
 
-        // --- Wikipedia Logic (Simplified for Stability) ---
+
+        // --- Wikipedia Logic ---
         async function fetchSuggestions(query) {
+            if (query.length < 2) return [];
+            
+            // Cancel previous request
+            if (state.currentController) {
+                state.currentController.abort();
+            }
+            state.currentController = new AbortController();
+            
             try {
-                const res = await fetch(`${API}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`);
+                const res = await fetch(`${API}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, {
+                    signal: state.currentController.signal
+                });
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                
                 const data = await res.json();
-                return data[1].map((t, i) => ({ title: t }));
-            } catch (e) { return []; }
+                return data[1].map((t, i) => ({ title: t, desc: data[2][i] }));
+            } catch (error) {
+                if (error.name === 'AbortError') return [];
+                console.warn('Failed to fetch suggestions:', error);
+                return [];
+            } finally {
+                state.currentController = null;
+            }
         }
 
         async function fetchPage(title) {
             try {
                 const res = await fetch(`${API}&action=parse&page=${encodeURIComponent(title)}&format=json&prop=text|displaytitle&redirects=1&disableeditsection=1`);
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                
                 const data = await res.json();
-                if (data.error) throw new Error(data.error.info);
-                return { title: data.parse.displaytitle, html: data.parse.text['*'] };
-            } catch (e) { return null; }
+                if (data.error) {
+                    throw new Error(data.error.info || 'Wikipedia API Error');
+                }
+                
+                if (!data.parse || !data.parse.text || !data.parse.text['*']) {
+                    throw new Error('Invalid response format');
+                }
+                
+                return { title: data.parse.displaytitle || title, html: data.parse.text['*'] };
+            } catch (error) {
+                console.warn(`Failed to fetch page "${title}":`, error);
+                return { error: error.message };
+            }
         }
 
         function createNode(title, parentStack = null) {
@@ -372,8 +592,8 @@
                     <i class="ri-close-line" style="cursor:pointer; opacity:0.6;" onclick="removeNode(this)"></i>
                 </div>
                 <div class="card-body">
-                    <div style="display:flex; justify-content:center; align-items:center; height:100px; color:#555;">
-                        <div class="spinner"></div>
+                    <div style="display:flex; justify-content:center; align-items:center; height:100px; gap:10px; color:#555;">
+                        <div class="spinner"></div> Loading...
                     </div>
                 </div>
             `;
@@ -383,12 +603,11 @@
             if (!parentStack) {
                 dom.world.innerHTML = '';
                 dom.world.appendChild(wrapper);
-                resetView();
+                if(!state.isMobile) setTimeout(resetView, 100);
             } else {
                 parentStack.appendChild(wrapper);
-                // On mobile, auto-pan to the new child if it's off screen
-                if(window.innerWidth < 768) {
-                   // Optional: Add logic to center the new node
+                if(state.isMobile) {
+                    setTimeout(() => card.scrollIntoView({behavior: 'smooth', block: 'nearest'}), 100);
                 }
             }
 
@@ -397,25 +616,38 @@
 
             fetchPage(title).then(data => {
                 const body = card.querySelector('.card-body');
-                if(!data) {
-                    body.innerHTML = '<div style="color:#ef4444;text-align:center;">Load Error</div>';
+                
+                if(!data || data.error) {
+                    const errorMsg = data?.error || 'Unable to load page from Wikipedia';
+                    body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100px;color:#ef4444;gap:10px;">
+                        <i class="ri-error-warning-line" style="font-size:1.5rem;"></i>
+                        <div>${errorMsg}</div>
+                        <div style="font-size:0.8em;color:#888;">Please check your connection and try again</div>
+                    </div>`;
                     return;
                 }
                 
+                // Clean HTML with improved sanitization to preserve formatting
                 const clean = DOMPurify.sanitize(data.html, {
-                    FORBID_TAGS: ['style','script','img', 'table'], // Keeping it text-heavy for performance
-                    ALLOWED_ATTR: ['href']
+                    FORBID_TAGS: ['style','script','iframe','form','meta','link'],
+                    ALLOWED_TAGS: [
+                        'p','br','strong','b','em','i','u','s','a','h1','h2','h3','h4','h5','h6',
+                        'ul','ol','li','blockquote','pre','code','span','div','table','tr','td','th',
+                        'thead','tbody','caption','img','sup','sub'
+                    ],
+                    ALLOWED_ATTR: ['href','src','alt','title','class','id','colspan','rowspan','align'],
+                    FORBID_ATTR: ['onclick','onload','onerror','onmouseover','onfocus','onblur','onchange','onsubmit','onreset']
                 });
-                
                 card.querySelector('.card-title').innerHTML = data.title;
-                body.innerHTML = `<div class="wiki-text">${clean}</div>`;
+                body.innerHTML = clean;
+                body.classList.add('wiki-text');
 
-                // Link Handling
+                // Hijack Links
                 body.querySelectorAll('a').forEach(link => {
                     const href = link.getAttribute('href');
                     if(href && href.startsWith('/wiki/')) {
                         const target = href.replace('/wiki/', '').split('#')[0];
-                        if(target.includes(':')) { link.removeAttribute('href'); return; }
+                        if(target.includes(':')) { link.removeAttribute('href'); link.style.opacity = 0.5; return; }
                         
                         link.onclick = (e) => {
                             e.preventDefault();
@@ -440,25 +672,217 @@
 
         function removeNode(icon) {
             const wrapper = icon.closest('.node-wrapper');
-            gsap.to(wrapper, { opacity:0, height:0, duration:0.2, onComplete: () => wrapper.remove() });
+            const card = wrapper.querySelector('.card');
+            
+            // Disable interaction during animation
+            card.style.pointerEvents = 'none';
+            card.style.opacity = '0.5';
+            
+            gsap.to(wrapper, { 
+                opacity:0, 
+                height:0, 
+                margin:0, 
+                padding:0,
+                duration:0.3, 
+                onComplete: () => wrapper.remove() 
+            });
         }
 
-        // --- Search & Controls ---
+        // --- Search ---
         let debounce;
         dom.input.addEventListener('input', (e) => {
-            clearTimeout(debounce);
+            // Clear existing timeout
+            if (debounce) clearTimeout(debounce);
+            
             const val = e.target.value;
-            if(val.length < 2) { dom.suggestions.classList.remove('active'); return; }
+            if(val.length < 2) { 
+                dom.suggestions.classList.remove('active'); 
+                dom.loader.style.opacity = 0;
+                return; 
+            }
             
             dom.loader.style.opacity = 1;
             debounce = setTimeout(async () => {
-                const res = await fetchSuggestions(val);
+                const results = await fetchSuggestions(val);
                 dom.loader.style.opacity = 0;
-                dom.suggestions.innerHTML = '';
-                res.forEach(item => {
+                renderSuggestions(results);
+            }, 300);
+        });
+
+        function renderSuggestions(list) {
+            dom.suggestions.innerHTML = '';
+            
+            if(list.length === 0) {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 16px; text-align: center; color: #888; font-style: italic;';
+                noResults.innerHTML = '<i class="ri-search-line" style="margin-right:8px;"></i>No results found';
+                dom.suggestions.appendChild(noResults);
+            } else {
+                list.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 's-item';
-                    div.innerText = item.title;
+                    div.innerHTML = `<span>${item.title}</span><span style="font-size:0.8em; opacity:0.5;">${item.desc || ''}</span>`;
                     div.onclick = () => {
                         createNode(item.title);
-                        dom.suggestions.classL
+                        dom.suggestions.classList.remove('active');
+                        dom.input.value = '';
+                    };
+                    dom.suggestions.appendChild(div);
+                });
+            }
+            dom.suggestions.classList.add('active');
+        }
+
+        // --- Controls ---
+        function zoomIn() {
+            if (state.isMobile) return;
+            
+            // Cancel any ongoing animations for smooth transitions
+            gsap.killTweensOf(state);
+            
+            const newScale = Math.min(2.5, state.scale + 0.1); // More granular steps (0.1 vs 0.15)
+            const rect = dom.viewport.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const worldX = (centerX - state.x) / state.scale;
+            const worldY = (centerY - state.y) / state.scale;
+
+            // Ultra-smooth zoom animation with power2.inOut for buttery feel
+            gsap.to(state, {
+                scale: newScale,
+                x: centerX - worldX * newScale,
+                y: centerY - worldY * newScale,
+                duration: 0.2, // Quicker for better responsiveness
+                ease: "power2.inOut",
+                onUpdate: updateTransform
+            });
+        }
+        
+        function zoomOut() {
+            if (state.isMobile) return;
+            
+            // Cancel any ongoing animations for smooth transitions
+            gsap.killTweensOf(state);
+            
+            const newScale = Math.max(0.3, state.scale - 0.1); // More granular steps
+            const rect = dom.viewport.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const worldX = (centerX - state.x) / state.scale;
+            const worldY = (centerY - state.y) / state.scale;
+
+            // Ultra-smooth zoom animation with power2.inOut
+            gsap.to(state, {
+                scale: newScale,
+                x: centerX - worldX * newScale,
+                y: centerY - worldY * newScale,
+                duration: 0.2,
+                ease: "power2.inOut",
+                onUpdate: updateTransform
+            });
+        }
+        
+        function resetView() {
+            if(state.isMobile) return;
+            state.x = (window.innerWidth/2) - 225;
+            state.y = (window.innerHeight/2) - 300;
+            state.scale = 1;
+            gsap.to(state, { 
+                duration: 0.6, 
+                ease: "power2.inOut", 
+                onUpdate: updateTransform 
+            });
+        }
+
+        // --- Keyboard Shortcuts ---
+        window.addEventListener('keydown', (e) => {
+            if (state.isMobile) return;
+            
+            // Cancel any ongoing animations for smooth transitions
+            gsap.killTweensOf(state);
+            
+            // Arrow keys for panning
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+                const panSpeed = e.shiftKey ? 200 : 100; // Faster with Shift
+                const duration = 0.2;
+                const ease = "power2.out";
+                
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        gsap.to(state, {
+                            x: state.x + panSpeed,
+                            duration,
+                            ease,
+                            onUpdate: updateTransform
+                        });
+                        break;
+                    case 'ArrowRight':
+                        gsap.to(state, {
+                            x: state.x - panSpeed,
+                            duration,
+                            ease,
+                            onUpdate: updateTransform
+                        });
+                        break;
+                    case 'ArrowUp':
+                        gsap.to(state, {
+                            y: state.y + panSpeed,
+                            duration,
+                            ease,
+                            onUpdate: updateTransform
+                        });
+                        break;
+                    case 'ArrowDown':
+                        gsap.to(state, {
+                            y: state.y - panSpeed,
+                            duration,
+                            ease,
+                            onUpdate: updateTransform
+                        });
+                        break;
+                }
+                return;
+            }
+            
+            // Ctrl/Cmd + Plus/Equal for Zoom In
+            if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
+                e.preventDefault();
+                zoomIn();
+            }
+            
+            // Ctrl/Cmd + Minus for Zoom Out
+            if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+                e.preventDefault();
+                zoomOut();
+            }
+            
+            // Ctrl/Cmd + 0 for Reset View
+            if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+                e.preventDefault();
+                resetView();
+            }
+        });
+
+        // Init
+        function init() {
+            checkDevice();
+            createNode("Internet");
+            
+            // Force re-render of connector lines after initial load
+            if(!state.isMobile) {
+                setTimeout(() => {
+                    // Force reflow by adding and removing a class
+                    const world = document.getElementById('world');
+                    world.style.display = 'none';
+                    world.offsetHeight; // Trigger reflow
+                    world.style.display = '';
+                }, 100);
+            }
+        }
+        
+        init();
+
+    </script>
+</body>
+</html>
