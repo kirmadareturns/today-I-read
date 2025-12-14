@@ -20,7 +20,6 @@
             --text: #e2e8f0;
             --line-color: #3f3f46;
             --line-active: #3b82f6;
-            --line-width: 2px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -52,7 +51,7 @@
         #world {
             position: absolute;
             display: flex;
-            align-items: center; /* Center root initially */
+            align-items: center;
             padding: 0;
             transform-origin: 0 0;
             will-change: transform;
@@ -63,22 +62,15 @@
 
         /* --- TREE LAYOUT ENGINE --- */
         
-        /* The Wrapper contains the Card and the Container for its Children */
         .node-wrapper {
             display: flex;
-            align-items: flex-start; /* Align to top to allow clean branching */
-            gap: 60px; /* Horizontal space between generations */
+            align-items: flex-start;
+            gap: 60px; /* Space for connectors */
             position: relative;
-            margin-bottom: 20px; /* Vertical buffering */
-        }
-        
-        /* Optimization: skip rendering offscreen content logic handled by browser mostly, 
-           but we ensure layout containment */
-        .node-wrapper {
+            margin-bottom: 20px;
             contain: layout style;
         }
 
-        /* The Card Element */
         .card {
             width: 400px;
             height: 550px;
@@ -89,8 +81,8 @@
             display: flex;
             flex-direction: column;
             position: relative;
-            z-index: 10;
-            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.5); /* Reduced shadow for perf */
+            z-index: 10; /* Above connectors */
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.5);
             transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
         }
         
@@ -100,184 +92,47 @@
             z-index: 20;
         }
         
-        /* Active Path Styling (added via JS) */
         .card.path-active {
             border-color: var(--line-active);
             box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
         }
 
-        /* The Stack that holds the children nodes */
         .children-stack {
             display: flex;
             flex-direction: column;
             gap: 20px;
             position: relative;
-            padding-left: 0;
-            justify-content: center; /* Center children relative to parent input */
+            /* SVG Connector Container */
+            min-width: 10px; 
         }
 
-        /* --- CONNECTORS (The fix for "Clear Relationships") --- */
-
-        /* 1. Horizontal line from Child Card to its Parent's Bus */
-        /* We use ::before on the node-wrapper to draw the line entering the card */
-        .children-stack > .node-wrapper::before {
-            content: '';
+        /* --- ORGANIC CONNECTORS (SVG) --- */
+        .connector-svg {
             position: absolute;
-            left: -60px; /* Spans the gap */
-            top: 275px; /* Half of card height (550/2) */
-            width: 60px;
-            height: var(--line-width);
-            background: var(--line-color);
-            transition: background-color 0.2s;
-            pointer-events: none;
-        }
-        /* Mobile adjustment for line top position handled in media query */
-
-        /* 2. Vertical Bus Line on the Children Stack */
-        /* We use a pseudo-element on the stack to draw the vertical line connecting all siblings */
-        .children-stack::after {
-            content: '';
-            position: absolute;
-            left: -60px; /* Align with the start of the horizontal connectors */
             top: 0;
-            bottom: 0;
-            width: var(--line-width);
-            background: var(--line-color);
-            transition: background-color 0.2s;
+            left: 0;
+            width: 1px;
+            height: 100%;
+            overflow: visible;
             pointer-events: none;
-            /* Logic to position the vertical line correctly between first and last child is done via masking below */
-        }
-
-        /* 3. Horizontal line from Parent Card to the Stack */
-        /* This is actually the "exit" line of the parent, but in this DOM structure, 
-           it's easier to think of it as the input to the stack.
-           However, structurally, the vertical bus IS the input. 
-           We just need to mask the top and bottom of the bus so it doesn't extend past the children.
-        */
-
-        /* MASKING: Hide the vertical bus extending beyond the first and last child centers */
-        .children-stack > .node-wrapper:first-child::after {
-            content: '';
-            position: absolute;
-            left: -64px; /* Cover the bus width + wiggle room */
-            top: -50px; /* Go way up */
-            height: 325px; /* 275 (half card) + 50 buffer */
-            width: 10px;
-            background: var(--bg); /* Match background to "erase" line */
-            pointer-events: none;
+            z-index: 0; /* Behind cards */
+            color: var(--line-color);
+            transition: color 0.3s ease;
         }
         
-        .children-stack > .node-wrapper:last-child > .mask-bottom {
-             /* We use a dedicated span for bottom mask to avoid pseudo-element conflict if needed, 
-                but let's try a simpler approach without extra DOM first. 
-                Actually, using a gradient on the bus is cleaner than masking.
-             */
-        }
-        
-        /* ALTERNATIVE CLEANER LINES STRATEGY: 
-           Instead of one big bus, let's give each child a "turn" bracket.
-        */
-        .children-stack::after { display: none; } /* Disable global bus */
-        .children-stack::before { display: none; }
-
-        /* New Connector Logic: Brackets */
-        .children-stack > .node-wrapper .connector {
-            position: absolute;
-            left: -60px;
-            top: 0;
-            bottom: 0;
-            width: 60px;
-            pointer-events: none;
+        .children-stack.path-active .connector-svg {
+            color: var(--line-active);
         }
 
-        /* Horizontal rung */
-        .children-stack > .node-wrapper .connector::before {
-            content: ''; position: absolute;
-            right: 0; top: 275px; width: 30px; height: var(--line-width);
-            background: var(--line-color);
-            transition: background 0.2s;
+        /* Fade in new paths */
+        .connector-path {
+            opacity: 0;
+            animation: fadeInPath 0.6s ease-out forwards;
         }
+        @keyframes fadeInPath { from { opacity: 0; } to { opacity: 1; } }
 
-        /* Vertical segment connecting to sibling/parent */
-        .children-stack > .node-wrapper .connector::after {
-            content: ''; position: absolute;
-            right: 30px; /* Connects to horizontal rung */
-            width: var(--line-width);
-            background: var(--line-color);
-            transition: background 0.2s;
-        }
 
-        /* Logic for vertical segments height */
-        /* If I am not the first child, I need a line going UP */
-        /* If I am not the last child, I need a line going DOWN */
-        /* Actually, simpler: The parent connects to the MIDDLE of the stack. 
-           So we need a vertical line spanning from First Child Center to Last Child Center. 
-           And a horizontal line from Parent to that vertical line's center. 
-        */
-
-        /* Reverting to the Robust Bus Strategy with JS Dynamic sizing? 
-           No, CSS-only is preferred for performance. 
-           Let's go with: Parent connects to Stack. Stack has border-left. 
-           We mask the border-left to stop at top/bottom centers.
-        */
-        
-        .children-stack {
-            border-left: var(--line-width) solid var(--line-color);
-            padding-left: 30px; /* Space for horizontal rungs */
-            margin-left: 30px; /* Space from parent output */
-            transition: border-color 0.2s;
-        }
-        
-        .children-stack.path-active {
-            border-left-color: var(--line-active);
-        }
-
-        /* Parent Output Line */
-        .node-wrapper > .line-out {
-            position: absolute;
-            right: 0; 
-            top: 275px; /* Center of card */
-            width: 30px; /* Meets the stack margin */
-            height: var(--line-width);
-            background: var(--line-color);
-            transform: translateX(100%);
-            transition: background 0.2s;
-        }
-        .node-wrapper.path-active > .line-out {
-            background: var(--line-active);
-        }
-
-        /* Child Input Line (Rung) */
-        .children-stack > .node-wrapper::before {
-            content: ''; position: absolute;
-            left: -30px; /* Connects to stack border */
-            top: 275px; 
-            width: 30px; height: var(--line-width);
-            background: var(--line-color);
-            transition: background 0.2s;
-        }
-        .children-stack > .node-wrapper.path-active::before {
-            background: var(--line-active);
-        }
-
-        /* Masking Top/Bottom of Bus */
-        /* We place white blocks to hide the excess border */
-        .children-stack > .mask-top {
-            position: absolute; left: -5px; top: 0; width: 10px; background: var(--bg);
-            /* Height must be calculated to reach the first card center. 
-               Wrapper padding is 0. 
-               First card center is at 275px.
-            */
-            height: 275px;
-        }
-        .children-stack > .mask-bottom {
-            position: absolute; left: -5px; bottom: 0; width: 10px; background: var(--bg);
-            height: 275px; /* Assumes last card is at bottom */
-        }
-        /* Note: This assumes cards are always 550px tall. If variable, this breaks. 
-           Since cards are fixed height in CSS, this is safe. */
-
-        /* --- CARD INTERNALS --- */
+        /* --- UI ELEMENTS --- */
         .card-header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 16px 20px; border-bottom: 1px solid var(--border);
@@ -298,7 +153,6 @@
         .card-body::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
         .card-body::-webkit-scrollbar-track { background: transparent; }
 
-        /* Typography & Content */
         .wiki-text h2 { font-family: 'Space Grotesk'; color: #fff; margin: 1.5rem 0 0.5rem; font-size: 1.2rem; border-bottom: 1px solid #333; padding-bottom: 4px; }
         .wiki-text p { margin-bottom: 1rem; }
         .wiki-text a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(59,130,246,0.3); transition: all 0.2s; }
@@ -306,9 +160,9 @@
         .wiki-text ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 1rem; color: #a1a1aa; }
         .wiki-text blockquote { border-left: 3px solid var(--accent); padding-left: 1rem; color: #94a3b8; font-style: italic; margin: 1rem 0; }
         .wiki-text img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; }
-        .wiki-text .thumb { display: none; } /* Hide heavy wikipedia containers */
+        .wiki-text .thumb { display: none; }
 
-        /* --- UI ELEMENTS --- */
+        /* --- UI OVERLAYS --- */
         .search-bar {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
             z-index: 100; width: 420px; background: rgba(18,18,23,0.8); backdrop-filter: blur(12px);
@@ -355,12 +209,6 @@
         @media (max-width: 768px) {
             .node-wrapper { gap: 30px; margin-bottom: 10px; }
             .card { width: 320px; height: 450px; }
-            /* Adjust connector positions for smaller card height (450/2 = 225) */
-            .children-stack > .node-wrapper::before { top: 225px; }
-            .node-wrapper > .line-out { top: 225px; }
-            .children-stack > .mask-top { height: 225px; }
-            .children-stack > .mask-bottom { height: 225px; }
-            
             .search-bar { width: calc(100% - 40px); top: 20px; }
             .suggestions { width: calc(100% - 40px); top: 75px; }
             .controls { bottom: 20px; right: 20px; }
@@ -429,10 +277,8 @@
 
         function checkDevice() {
             state.isMobile = window.innerWidth <= 768;
-            // Force reflow/update masks if needed
-            document.querySelectorAll('.mask-top, .mask-bottom').forEach(el => {
-                // In a real app we might recalculate heights, but CSS media queries handle the 550->450 switch.
-            });
+            // Redraw all connectors on resize
+            document.querySelectorAll('.children-stack').forEach(updateStackConnectors);
         }
         window.addEventListener('resize', checkDevice);
         
@@ -507,7 +353,7 @@
                 e.preventDefault();
                 zoom(e.deltaY * -0.001, e.clientX, e.clientY);
             } else {
-                if (e.target.closest('.card-body')) return; // Allow scroll in cards
+                if (e.target.closest('.card-body')) return;
                 e.preventDefault();
                 gsap.killTweensOf(state);
                 state.x -= e.deltaX;
@@ -516,7 +362,6 @@
             }
         }, { passive: false });
 
-        // Touch logic
         dom.viewport.addEventListener('touchstart', (e) => {
             if (e.target.closest('.card-body') || e.target.closest('input') || e.target.closest('button')) return;
             if(e.touches.length === 2) {
@@ -540,11 +385,9 @@
                 const scaleFactor = dist / state.touchStartDist;
                 const newScale = Math.min(Math.max(0.1, state.touchStartScale * scaleFactor), 3);
                 
-                // Zoom to center for simplicity on pinch
                 const rect = dom.viewport.getBoundingClientRect();
                 const mx = rect.width/2; 
                 const my = rect.height/2;
-                // Basic zoom calc (can be improved to zoom to pinch center)
                 state.scale = newScale;
                 updateTransform();
             } else {
@@ -563,7 +406,6 @@
             const mx = centerX ?? (rect.width/2);
             const my = centerY ?? (rect.height/2);
             
-            // Translate to keep mouse point stable
             const worldX = (mx - state.x) / currentScale;
             const worldY = (my - state.y) / currentScale;
             
@@ -571,7 +413,6 @@
             state.y = my - worldY * newScale;
             state.scale = newScale;
             
-            // Animate only if button trigger (no mouse coords)
             if (!centerX) {
                 gsap.to(state, { scale: newScale, x: state.x, y: state.y, duration: 0.3, onUpdate: updateTransform });
             } else {
@@ -600,18 +441,80 @@
             } catch (error) { return { error: error.message || 'Error loading page' }; }
         }
 
+        // --- Organic Connector Logic ---
+
+        function updateStackConnectors(stack) {
+            if (!stack) return;
+            
+            const isMobile = window.innerWidth <= 768;
+            const gap = isMobile ? 30 : 60; // Matches CSS .node-wrapper gap
+            const cardHeight = isMobile ? 450 : 550;
+            const cardHalf = cardHeight / 2;
+            
+            // Get or create SVG container
+            let svg = stack.querySelector('.connector-svg');
+            if (!svg) {
+                svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('class', 'connector-svg');
+                stack.prepend(svg);
+            }
+            
+            svg.innerHTML = '';
+            
+            const children = Array.from(stack.children).filter(c => c.classList.contains('node-wrapper'));
+            if (children.length === 0) return;
+
+            // Geometry: 
+            // Parent Exit: x = -gap, y = cardHalf (relative to stack top-left)
+            // Child Entry: x = 0, y = child.offsetTop + cardHalf
+            
+            const startX = -gap;
+            const startY = cardHalf; 
+            const startThick = 8; // Trunk thickness
+            const endThick = 2;   // Tip thickness
+            
+            children.forEach(child => {
+                const childY = child.offsetTop;
+                const endX = 0; 
+                const endY = childY + cardHalf;
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('class', 'connector-path');
+                path.setAttribute('fill', 'currentColor');
+                
+                // Organic Curve Shape (Filled Path for tapering)
+                // We create a closed loop shape that represents the "muscle" or "branch"
+                const dist = Math.abs(endX - startX);
+                const cp1x = startX + (dist * 0.6); // Control points extend horizontally
+                const cp1y = startY;
+                const cp2x = endX - (dist * 0.6);
+                const cp2y = endY;
+                
+                // Top curve (Parent Top -> Child Top)
+                // Bottom curve (Child Bottom -> Parent Bottom)
+                const d = [
+                    `M ${startX} ${startY - startThick/2}`,
+                    `C ${cp1x} ${cp1y - startThick/2}, ${cp2x} ${cp2y - endThick/2}, ${endX} ${endY - endThick/2}`,
+                    `L ${endX} ${endY + endThick/2}`,
+                    `C ${cp2x} ${cp2y + endThick/2}, ${cp1x} ${cp1y + startThick/2}, ${startX} ${startY + startThick/2}`,
+                    `Z`
+                ].join(' ');
+                
+                path.setAttribute('d', d);
+                svg.appendChild(path);
+            });
+        }
+
         // --- Tree Node Logic ---
 
         function highlightPath(element, active) {
             let current = element;
             while(current && current.id !== 'world') {
                 if(current.classList.contains('node-wrapper')) {
-                    if(active) current.classList.add('path-active');
-                    else current.classList.remove('path-active');
+                    active ? current.classList.add('path-active') : current.classList.remove('path-active');
                 }
                 if(current.classList.contains('children-stack')) {
-                    if(active) current.classList.add('path-active');
-                    else current.classList.remove('path-active');
+                    active ? current.classList.add('path-active') : current.classList.remove('path-active');
                 }
                 current = current.parentElement;
             }
@@ -622,10 +525,7 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'node-wrapper';
 
-            // Output line (to connect to children)
-            const lineOut = document.createElement('div');
-            lineOut.className = 'line-out';
-            wrapper.appendChild(lineOut);
+            // Note: No .line-out div needed anymore
 
             const card = document.createElement('div');
             card.className = 'card';
@@ -641,7 +541,6 @@
                 </div>
             `;
             
-            // Path Tracing Events
             card.addEventListener('mouseenter', () => highlightPath(wrapper, true));
             card.addEventListener('mouseleave', () => highlightPath(wrapper, false));
 
@@ -653,10 +552,11 @@
             if (!parentStack) {
                 dom.world.innerHTML = '';
                 dom.world.appendChild(wrapper);
-                // Center initial view
                 setTimeout(resetView, 100);
             } else {
                 parentStack.appendChild(wrapper);
+                // Update lines for this stack
+                updateStackConnectors(parentStack);
             }
 
             fetchPage(title).then(data => {
@@ -672,13 +572,10 @@
                     ALLOWED_ATTR: ['href','src','alt','title','class','id']
                 });
                 
-                // Simple parser to limit content length for performance if needed, 
-                // but for now we just dump it.
                 card.querySelector('.card-title').innerHTML = data.title;
                 body.innerHTML = clean;
                 body.classList.add('wiki-text');
 
-                // Intercept Links
                 body.querySelectorAll('a').forEach(link => {
                     const href = link.getAttribute('href');
                     if(href && href.startsWith('/wiki/')) {
@@ -703,32 +600,18 @@
             if(!stack) {
                 stack = document.createElement('div');
                 stack.className = 'children-stack';
-                
-                // Add masks for the bus line
-                const maskTop = document.createElement('div');
-                maskTop.className = 'mask-top';
-                stack.appendChild(maskTop);
-                
-                const maskBottom = document.createElement('div');
-                maskBottom.className = 'mask-bottom';
-                stack.appendChild(maskBottom);
-                
                 parentWrapper.appendChild(stack);
             }
             
-            // Check for duplicates in this stack
             const existing = Array.from(stack.querySelectorAll('.card-title')).find(el => el.textContent === title);
             if(existing) {
-                // Flash the existing card
                 const card = existing.closest('.card');
                 gsap.to(card, { borderColor: '#f59e0b', duration: 0.2, yoyo: true, repeat: 3 });
                 return;
             }
 
-            // Insert before the bottom mask
-            const maskBottom = stack.querySelector('.mask-bottom');
-            const newNode = createNode(title, stack);
-            stack.insertBefore(stack.lastElementChild, maskBottom); // Move new node before mask
+            createNode(title, stack);
+            // Connectors updated inside createNode
         }
 
         function removeNode(icon) {
@@ -740,12 +623,20 @@
                 height: 0, 
                 marginBottom: 0,
                 duration: 0.3, 
+                onUpdate: () => {
+                   // Keep lines connected during collapse
+                   if(stack && stack.classList.contains('children-stack')) updateStackConnectors(stack);
+                },
                 onComplete: () => {
                     wrapper.remove();
-                    // If stack is empty (only masks left), remove stack
+                    
                     if(stack && stack.classList.contains('children-stack')) {
-                        // 2 masks = 2 children
-                        if(stack.children.length <= 2) stack.remove();
+                        const remainingNodes = Array.from(stack.children).filter(c => c.classList.contains('node-wrapper'));
+                        if(remainingNodes.length === 0) {
+                            stack.remove();
+                        } else {
+                            updateStackConnectors(stack);
+                        }
                     }
                 } 
             });
@@ -795,27 +686,17 @@
         function zoomIn() { zoom(0.3); }
         function zoomOut() { zoom(-0.3); }
         function resetView() {
-            // Find root card
             const root = dom.world.querySelector('.node-wrapper .card');
             if(!root) return;
-            
             const cardW = state.isMobile ? 320 : 400;
             const screenW = window.innerWidth;
             const screenH = window.innerHeight;
-            
-            // Center the first card
             state.x = (screenW / 2) - (cardW / 2);
-            state.y = (screenH / 2) - 275; // Half card height
+            state.y = (screenH / 2) - 275;
             state.scale = 1;
-            
-            gsap.to(state, { 
-                x: state.x, y: state.y, scale: 1, 
-                duration: 0.8, ease: "power2.inOut", 
-                onUpdate: updateTransform 
-            });
+            gsap.to(state, { x: state.x, y: state.y, scale: 1, duration: 0.8, ease: "power2.inOut", onUpdate: updateTransform });
         }
 
-        // Keyboard Shortcuts
         window.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT') return;
             if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
@@ -829,7 +710,6 @@
             }
         });
 
-        // Init
         checkDevice();
         createNode("Fractal");
 
