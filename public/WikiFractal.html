@@ -264,6 +264,11 @@
             nodeCount: 0
         };
 
+        const APIS = {
+            wikipedia: 'https://en.wikipedia.org/w/api.php?origin=*',
+            wiktionary: 'https://en.wiktionary.org/w/api.php?origin=*'
+        };
+
         const dom = {
             viewport: document.getElementById('viewport'),
             world: document.getElementById('world'),
@@ -272,8 +277,6 @@
             loader: document.getElementById('loader'),
             zoomLevel: document.getElementById('zoomLevel')
         };
-
-        const API = 'https://en.wikipedia.org/w/api.php?origin=*';
 
         function checkDevice() {
             state.isMobile = window.innerWidth <= 768;
@@ -426,15 +429,34 @@
             state.currentController = new AbortController();
             
             try {
-                const res = await fetch(`${API}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, { signal: state.currentController.signal });
-                const data = await res.json();
-                return data[1].map((t, i) => ({ title: t, desc: data[2][i] }));
+                // Fetch BOTH APIs in parallel
+                const [wikiRes, dictRes] = await Promise.all([
+                    fetch(`${APIS.wikipedia}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, { signal: state.currentController.signal }),
+                    fetch(`${APIS.wiktionary}&action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json`, { signal: state.currentController.signal })
+                ]);
+
+                const wikiData = await wikiRes.json();
+                const dictData = await dictRes.json();
+                
+                const results = [];
+                // Process Wiki
+                if (wikiData[1]) {
+                    wikiData[1].forEach((t, i) => results.push({ title: t, desc: wikiData[2][i], source: 'wikipedia' }));
+                }
+                // Process Dict
+                if (dictData[1]) {
+                    dictData[1].forEach((t, i) => results.push({ title: t, desc: dictData[2][i], source: 'wiktionary' }));
+                }
+                
+                return results;
             } catch (error) { return []; }
         }
 
-        async function fetchPage(title) {
+        async function fetchPage(title, source) {
+            // Select correct API based on source parameter
+            const apiBase = APIS[source] || APIS.wikipedia; 
             try {
-                const res = await fetch(`${API}&action=parse&page=${encodeURIComponent(title)}&format=json&prop=text|displaytitle&redirects=1&disableeditsection=1`);
+                const res = await fetch(`${apiBase}&action=parse&page=${encodeURIComponent(title)}&format=json&prop=text|displaytitle&redirects=1&disableeditsection=1`);
                 const data = await res.json();
                 if (data.error) throw new Error(data.error.info);
                 return { title: data.parse.displaytitle || title, html: data.parse.text['*'] };
@@ -520,15 +542,17 @@
             }
         }
 
-        function createNode(title, parentStack = null) {
+        // Modified createNode to accept and handle 'source'
+        function createNode(title, parentStack = null, source = 'wikipedia') {
             state.nodeCount++;
             const wrapper = document.createElement('div');
             wrapper.className = 'node-wrapper';
 
-            // Note: No .line-out div needed anymore
-
             const card = document.createElement('div');
             card.className = 'card';
+            // Store source for logic, but don't style off it
+            card.setAttribute('data-source', source);
+
             card.innerHTML = `
                 <div class="card-header">
                     <div class="card-title">${title}</div>
@@ -546,7 +570,6 @@
 
             wrapper.appendChild(card);
             
-            // Initial animation
             gsap.from(card, { opacity:0, x:-20, duration:0.4, clearProps:"all" });
 
             if (!parentStack) {
@@ -559,7 +582,7 @@
                 updateStackConnectors(parentStack);
             }
 
-            fetchPage(title).then(data => {
+            fetchPage(title, source).then(data => {
                 const body = card.querySelector('.card-body');
                 if(data.error) {
                     body.innerHTML = `<div style="text-align:center; padding:20px; color:#ef4444;">${data.error}</div>`;
@@ -585,7 +608,8 @@
                         }
                         link.onclick = (e) => {
                             e.preventDefault();
-                            spawnChild(wrapper, target);
+                            // Pass the 'source' (wiki or wiktionary) to child
+                            spawnChild(wrapper, target, source);
                         };
                     } else {
                         link.target = "_blank";
@@ -595,7 +619,7 @@
             });
         }
 
-        function spawnChild(parentWrapper, title) {
+        function spawnChild(parentWrapper, title, source) {
             let stack = parentWrapper.querySelector('.children-stack');
             if(!stack) {
                 stack = document.createElement('div');
@@ -603,14 +627,22 @@
                 parentWrapper.appendChild(stack);
             }
             
-            const existing = Array.from(stack.querySelectorAll('.card-title')).find(el => el.textContent === title);
+            // Check for existing node (including source check to avoid duplicates)
+            const existing = Array.from(stack.children)
+                .filter(el => el.classList.contains('node-wrapper'))
+                .find(wrapper => {
+                    const card = wrapper.querySelector('.card');
+                    const titleEl = card.querySelector('.card-title');
+                    return titleEl.textContent === title && card.getAttribute('data-source') === source;
+                });
+
             if(existing) {
-                const card = existing.closest('.card');
+                const card = existing.querySelector('.card');
                 gsap.to(card, { borderColor: '#f59e0b', duration: 0.2, yoyo: true, repeat: 3 });
                 return;
             }
 
-            createNode(title, stack);
+            createNode(title, stack, source);
             // Connectors updated inside createNode
         }
 
@@ -668,12 +700,15 @@
             list.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 's-item';
+                // Using exact original structure, but showing source in description if useful,
+                // or just standard description.
                 div.innerHTML = `
                     <div style="font-weight:500; color:#e2e8f0">${item.title}</div>
-                    <div style="font-size:0.85em; opacity:0.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;">${item.desc || 'Wikipedia Article'}</div>
+                    <div style="font-size:0.85em; opacity:0.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;">${item.desc || (item.source === 'wiktionary' ? 'Definition' : 'Article')}</div>
                 `;
                 div.onclick = () => {
-                    createNode(item.title);
+                    // Pass the item's source
+                    createNode(item.title, null, item.source);
                     dom.suggestions.classList.remove('active');
                     dom.input.value = '';
                 };
